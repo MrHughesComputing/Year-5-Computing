@@ -35,6 +35,7 @@ type QuizResult = {
 };
 
 type ScreenshotMap = Record<number, string>;
+type QuizOrderMap = Record<number, number[][]>;
 
 type LearnerProfile = {
   className: string;
@@ -1742,6 +1743,51 @@ function buildQuiz(lessonId: number): QuizQuestion[] {
   return quizBank[lessonId] || [];
 }
 
+function safeParseQuizOrderMap(raw: string | null): QuizOrderMap {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function shuffleArray<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function buildQuizOrder(questions: QuizQuestion[]): number[][] {
+  return questions.map((question) =>
+    shuffleArray(question.options.map((_, optionIndex) => optionIndex))
+  );
+}
+
+function applyQuizOrder(questions: QuizQuestion[], quizOrder: number[][]) {
+  return questions.map((question, questionIndex) => {
+    const savedOrder = quizOrder[questionIndex];
+    const validSavedOrder =
+      Array.isArray(savedOrder) &&
+      savedOrder.length === question.options.length &&
+      question.options.every((_, optionIndex) => savedOrder.includes(optionIndex));
+
+    const optionOrder = validSavedOrder
+      ? savedOrder
+      : question.options.map((_, optionIndex) => optionIndex);
+
+    return {
+      ...question,
+      options: optionOrder.map((optionIndex) => question.options[optionIndex]),
+      originalOptionIndexes: optionOrder,
+    };
+  });
+}
+
 export default function Home() {
   const [selectedLessonId, setSelectedLessonId] = useState(1);
   const [completed, setCompleted] = useState<number[]>([]);
@@ -1750,6 +1796,7 @@ export default function Home() {
     {}
   );
   const [screenshots, setScreenshots] = useState<ScreenshotMap>({});
+  const [quizOrderMap, setQuizOrderMap] = useState<QuizOrderMap>({});
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
 
   const [startMode, setStartMode] = useState<StartMode>("existing");
@@ -1785,11 +1832,15 @@ export default function Home() {
     const savedScreenshots = localStorage.getItem(
       `${profile.storageKey}-screenshots`
     );
+    const savedQuizOrder = localStorage.getItem(
+      `${profile.storageKey}-quiz-order`
+    );
 
     setCompleted(savedProgress ? JSON.parse(savedProgress) : []);
     setQuizState(savedQuiz ? JSON.parse(savedQuiz) : {});
     setCurrentAnswers({});
     setScreenshots(savedScreenshots ? JSON.parse(savedScreenshots) : {});
+    setQuizOrderMap(safeParseQuizOrderMap(savedQuizOrder));
     setSelectedLessonId(1);
   }, [profile]);
 
@@ -1817,10 +1868,52 @@ export default function Home() {
     );
   }, [screenshots, profile]);
 
+  useEffect(() => {
+    if (!profile) return;
+    localStorage.setItem(
+      `${profile.storageKey}-quiz-order`,
+      JSON.stringify(quizOrderMap)
+    );
+  }, [quizOrderMap, profile]);
+
   const selectedLesson =
     lessons.find((lesson) => lesson.id === selectedLessonId) || lessons[0];
 
-  const quiz = useMemo(() => buildQuiz(selectedLesson.id), [selectedLesson.id]);
+  const baseQuiz = useMemo(() => buildQuiz(selectedLesson.id), [selectedLesson.id]);
+
+  useEffect(() => {
+    if (!profile) return;
+
+    setQuizOrderMap((prev) => {
+      const existingOrder = prev[selectedLesson.id];
+      const isValidExistingOrder =
+        Array.isArray(existingOrder) &&
+        existingOrder.length === baseQuiz.length &&
+        baseQuiz.every((question, questionIndex) => {
+          const orderForQuestion = existingOrder[questionIndex];
+          return (
+            Array.isArray(orderForQuestion) &&
+            orderForQuestion.length === question.options.length &&
+            question.options.every((_, optionIndex) =>
+              orderForQuestion.includes(optionIndex)
+            )
+          );
+        });
+
+      if (isValidExistingOrder) return prev;
+
+      return {
+        ...prev,
+        [selectedLesson.id]: buildQuizOrder(baseQuiz),
+      };
+    });
+  }, [profile, selectedLesson.id, baseQuiz]);
+
+  const quiz = useMemo(() => {
+    const lessonOrder = quizOrderMap[selectedLesson.id] || [];
+    return applyQuizOrder(baseQuiz, lessonOrder);
+  }, [baseQuiz, quizOrderMap, selectedLesson.id]);
+
   const submittedResult = quizState[selectedLesson.id];
   const selectedAnswers =
     currentAnswers[selectedLesson.id] || Array(quiz.length).fill(-1);
@@ -1880,6 +1973,7 @@ export default function Home() {
   const switchLearner = () => {
     setProfile(null);
     setCurrentAnswers({});
+    setQuizOrderMap({});
     setStartMode("existing");
     setRegistry(getRegistry());
   };
@@ -1893,6 +1987,7 @@ export default function Home() {
 
     localStorage.removeItem(`${selectedProfile.storageKey}-progress`);
     localStorage.removeItem(`${selectedProfile.storageKey}-quiz-results`);
+    localStorage.removeItem(`${selectedProfile.storageKey}-quiz-order`);
     localStorage.removeItem(`${selectedProfile.storageKey}-screenshots`);
 
     removeProfileFromRegistry(selectedProfile);
@@ -1918,9 +2013,11 @@ export default function Home() {
     setQuizState({});
     setCurrentAnswers({});
     setScreenshots({});
+    setQuizOrderMap({});
 
     localStorage.removeItem(`${profile.storageKey}-progress`);
     localStorage.removeItem(`${profile.storageKey}-quiz-results`);
+    localStorage.removeItem(`${profile.storageKey}-quiz-order`);
     localStorage.removeItem(`${profile.storageKey}-screenshots`);
   };
 
@@ -1941,7 +2038,10 @@ export default function Home() {
 
     let score = 0;
     quiz.forEach((question, index) => {
-      if (selectedAnswers[index] === question.answer) {
+      const displayedIndex = selectedAnswers[index];
+      const originalIndex = question.originalOptionIndexes?.[displayedIndex] ?? displayedIndex;
+
+      if (originalIndex === question.answer) {
         score += 1;
       }
     });
@@ -2965,12 +3065,15 @@ export default function Home() {
                     {question.options.map((option, oIndex) => {
                       const chosen = selectedAnswers[qIndex] === oIndex;
                       const locked = submittedResult?.submitted;
+                      const originalOptionIndex =
+                        question.originalOptionIndexes?.[oIndex] ?? oIndex;
                       const isCorrect =
-                        submittedResult?.submitted && question.answer === oIndex;
+                        submittedResult?.submitted &&
+                        originalOptionIndex === question.answer;
                       const isWrongChoice =
                         submittedResult?.submitted &&
                         chosen &&
-                        question.answer !== oIndex;
+                        originalOptionIndex !== question.answer;
 
                       return (
                         <button
