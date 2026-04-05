@@ -34,6 +34,16 @@ type QuizResult = {
   answers: number[];
 };
 
+type ScreenshotMap = Record<number, string>;
+
+type LearnerProfile = {
+  className: string;
+  studentName: string;
+  storageKey: string;
+};
+
+const CLASS_OPTIONS = ["Year 5 Eucalyptus", "Year 5 Hawthorne", "Year 5 Sycamore", "Year 5 Willow"];
+
 const lessons: Lesson[] = [
   {
     id: 1,
@@ -93,14 +103,12 @@ const lessons: Lesson[] = [
       "Run the code and check what happens when the condition is true.",
       "Test what happens when the condition is false.",
     ],
-    scratchTask:
-      "Make a sprite react only when a condition is true.",
+    scratchTask: "Make a sprite react only when a condition is true.",
     keyQuestion:
       "What happens if the condition is false in an if... then... block?",
     misconception:
       "Nothing inside the block runs when the condition is false.",
-    correctOutcome:
-      "The action happens only when the rule is met.",
+    correctOutcome: "The action happens only when the rule is met.",
     wrongOutcome:
       "The action happens all the time because the condition is missing or outside the block.",
     scratchLink: "https://scratch.mit.edu/",
@@ -112,8 +120,7 @@ const lessons: Lesson[] = [
     title: "If... Then... Else...",
     shortTitle: "Branching",
     description: "Using two outcomes in Scratch",
-    objective:
-      "I can create code with two different outcomes.",
+    objective: "I can create code with two different outcomes.",
     overview:
       "If... then... else... lets a program choose between two different outcomes.",
     whyItMatters:
@@ -131,8 +138,7 @@ const lessons: Lesson[] = [
     ],
     scratchTask:
       "Create a quiz-style response with a correct and incorrect outcome.",
-    keyQuestion:
-      "Why is the else part useful in a program?",
+    keyQuestion: "Why is the else part useful in a program?",
     misconception:
       "Else is not repetition. It is the second outcome when the condition is false.",
     correctOutcome:
@@ -203,8 +209,7 @@ const lessons: Lesson[] = [
     ],
     scratchTask:
       "Create one interactive question using ask, answer, and a condition.",
-    keyQuestion:
-      "How does Scratch remember what the user typed?",
+    keyQuestion: "How does Scratch remember what the user typed?",
     misconception:
       "The answer block stores the user response, not the question itself.",
     correctOutcome:
@@ -510,7 +515,8 @@ function buildQuiz(lesson: Lesson): QuizQuestion[] {
       answer: 0,
     },
     {
-      prompt: "What key question should you be able to answer by the end of the lesson?",
+      prompt:
+        "What key question should you be able to answer by the end of the lesson?",
       options: [
         lesson.keyQuestion,
         "What colour is the Scratch logo?",
@@ -584,7 +590,9 @@ const pastel = {
   shadow: "0 10px 30px rgba(148, 163, 184, 0.14)",
 };
 
-type ScreenshotMap = Record<number, string>;
+function slugifyName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, "-");
+}
 
 export default function Home() {
   const [selectedLessonId, setSelectedLessonId] = useState(1);
@@ -594,28 +602,62 @@ export default function Home() {
     {}
   );
   const [screenshots, setScreenshots] = useState<ScreenshotMap>({});
+  const [profile, setProfile] = useState<LearnerProfile | null>(null);
+
+  const [setupClass, setSetupClass] = useState<string>("");
+  const [setupStudentName, setSetupStudentName] = useState("");
 
   useEffect(() => {
-    const savedProgress = localStorage.getItem("year5-computing-progress");
-    const savedQuiz = localStorage.getItem("year5-computing-quiz-results");
-    const savedScreenshots = localStorage.getItem("year5-computing-screenshots");
-
-    if (savedProgress) setCompleted(JSON.parse(savedProgress));
-    if (savedQuiz) setQuizState(JSON.parse(savedQuiz));
-    if (savedScreenshots) setScreenshots(JSON.parse(savedScreenshots));
+    const savedProfile = localStorage.getItem("year5-current-profile");
+    if (savedProfile) {
+      const parsed = JSON.parse(savedProfile) as LearnerProfile;
+      setProfile(parsed);
+      setSetupClass(parsed.className);
+      setSetupStudentName(parsed.studentName);
+    }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("year5-computing-progress", JSON.stringify(completed));
-  }, [completed]);
+    if (!profile) return;
+
+    localStorage.setItem("year5-current-profile", JSON.stringify(profile));
+
+    const savedProgress = localStorage.getItem(`${profile.storageKey}-progress`);
+    const savedQuiz = localStorage.getItem(`${profile.storageKey}-quiz-results`);
+    const savedScreenshots = localStorage.getItem(
+      `${profile.storageKey}-screenshots`
+    );
+
+    setCompleted(savedProgress ? JSON.parse(savedProgress) : []);
+    setQuizState(savedQuiz ? JSON.parse(savedQuiz) : {});
+    setCurrentAnswers({});
+    setScreenshots(savedScreenshots ? JSON.parse(savedScreenshots) : {});
+    setSelectedLessonId(1);
+  }, [profile]);
 
   useEffect(() => {
-    localStorage.setItem("year5-computing-quiz-results", JSON.stringify(quizState));
-  }, [quizState]);
+    if (!profile) return;
+    localStorage.setItem(
+      `${profile.storageKey}-progress`,
+      JSON.stringify(completed)
+    );
+  }, [completed, profile]);
 
   useEffect(() => {
-    localStorage.setItem("year5-computing-screenshots", JSON.stringify(screenshots));
-  }, [screenshots]);
+    if (!profile) return;
+    localStorage.setItem(
+      `${profile.storageKey}-quiz-results`,
+      JSON.stringify(quizState)
+    );
+  }, [quizState, profile]);
+
+  useEffect(() => {
+    if (!profile) return;
+    localStorage.setItem(
+      `${profile.storageKey}-screenshots`,
+      JSON.stringify(screenshots)
+    );
+  }, [screenshots, profile]);
 
   const selectedLesson =
     lessons.find((lesson) => lesson.id === selectedLessonId) || lessons[0];
@@ -638,20 +680,48 @@ export default function Home() {
     []
   );
 
+  const startSession = () => {
+    if (!setupClass) {
+      alert("Please choose a class.");
+      return;
+    }
+
+    if (!setupStudentName.trim()) {
+      alert("Please enter the student name.");
+      return;
+    }
+
+    const cleanName = setupStudentName.trim();
+    const storageKey = `year5-${setupClass}-${slugifyName(cleanName)}`;
+
+    setProfile({
+      className: setupClass,
+      studentName: cleanName,
+      storageKey,
+    });
+  };
+
+  const switchLearner = () => {
+    setProfile(null);
+  };
+
   const markComplete = () => {
     if (!completed.includes(selectedLesson.id)) {
       setCompleted((prev) => [...prev, selectedLesson.id]);
     }
   };
 
-  const resetProgress = () => {
+  const resetCurrentLearnerProgress = () => {
+    if (!profile) return;
+
     setCompleted([]);
     setQuizState({});
     setCurrentAnswers({});
     setScreenshots({});
-    localStorage.removeItem("year5-computing-progress");
-    localStorage.removeItem("year5-computing-quiz-results");
-    localStorage.removeItem("year5-computing-screenshots");
+
+    localStorage.removeItem(`${profile.storageKey}-progress`);
+    localStorage.removeItem(`${profile.storageKey}-quiz-results`);
+    localStorage.removeItem(`${profile.storageKey}-screenshots`);
   };
 
   const chooseAnswer = (questionIndex: number, optionIndex: number) => {
@@ -667,10 +737,14 @@ export default function Home() {
       alert("Please answer all 10 questions before submitting.");
       return;
     }
+
     let score = 0;
     quiz.forEach((question, index) => {
-      if (selectedAnswers[index] === question.answer) score += 1;
+      if (selectedAnswers[index] === question.answer) {
+        score += 1;
+      }
     });
+
     setQuizState((prev) => ({
       ...prev,
       [selectedLesson.id]: {
@@ -707,7 +781,6 @@ export default function Home() {
       }
     };
     reader.readAsDataURL(file);
-
     event.target.value = "";
   };
 
@@ -718,6 +791,173 @@ export default function Home() {
       return updated;
     });
   };
+
+  if (!profile) {
+    return (
+      <main
+        style={{
+          padding: 32,
+          fontFamily: "Inter, Arial, sans-serif",
+          maxWidth: 980,
+          margin: "0 auto",
+          background: pastel.page,
+          color: pastel.text,
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            background:
+              "linear-gradient(135deg, #fdf2f8 0%, #eff6ff 45%, #ecfeff 100%)",
+            border: `1px solid ${pastel.border}`,
+            borderRadius: 28,
+            padding: 32,
+            boxShadow: pastel.shadow,
+          }}
+        >
+          <div style={{ marginBottom: 24 }}>
+            <div
+              style={{
+                fontSize: 14,
+                color: "#7c3aed",
+                fontWeight: 700,
+                letterSpacing: 0.3,
+              }}
+            >
+              APSR Computing Platform
+            </div>
+            <h1
+              style={{
+                fontSize: 46,
+                lineHeight: 1.05,
+                margin: "8px 0 10px",
+                color: pastel.title,
+              }}
+            >
+              Welcome to Year 5 Computing
+            </h1>
+            <p style={{ fontSize: 20, margin: 0 }}>
+              Choose your class and enter your name to open your learning space.
+            </p>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(255,255,255,0.72)",
+              border: `1px solid ${pastel.border}`,
+              borderRadius: 24,
+              padding: 24,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 28,
+                marginTop: 0,
+                marginBottom: 14,
+                color: pastel.title,
+              }}
+            >
+              Step 1: Choose your class
+            </h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(180px, 1fr))",
+                gap: 14,
+                marginBottom: 24,
+              }}
+            >
+              {CLASS_OPTIONS.map((classOption) => {
+                const isActive = setupClass === classOption;
+                return (
+                  <button
+                    key={classOption}
+                    onClick={() => setSetupClass(classOption)}
+                    style={{
+                      padding: "18px 16px",
+                      borderRadius: 18,
+                      border: isActive
+                        ? "1px solid #c4b5fd"
+                        : `1px solid ${pastel.border}`,
+                      background: isActive
+                        ? "linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%)"
+                        : "#ffffff",
+                      fontWeight: 800,
+                      fontSize: 18,
+                      color: pastel.title,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {classOption}
+                  </button>
+                );
+              })}
+            </div>
+
+            <h2
+              style={{
+                fontSize: 28,
+                marginTop: 0,
+                marginBottom: 14,
+                color: pastel.title,
+              }}
+            >
+              Step 2: Enter your name
+            </h2>
+
+            <input
+              type="text"
+              value={setupStudentName}
+              onChange={(e) => setSetupStudentName(e.target.value)}
+              placeholder="Type your first name and surname"
+              style={{
+                width: "100%",
+                padding: "16px 18px",
+                borderRadius: 16,
+                border: `1px solid ${pastel.border}`,
+                fontSize: 18,
+                marginBottom: 20,
+                outline: "none",
+              }}
+            />
+
+            <button
+              onClick={startSession}
+              style={{
+                padding: "16px 22px",
+                borderRadius: 16,
+                border: "none",
+                background: "linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%)",
+                color: "white",
+                fontWeight: 800,
+                fontSize: 18,
+                cursor: "pointer",
+              }}
+            >
+              Start Learning
+            </button>
+
+            <p
+              style={{
+                marginTop: 18,
+                marginBottom: 0,
+                fontSize: 14,
+                color: "#64748b",
+                lineHeight: 1.6,
+              }}
+            >
+              Each pupil’s progress, quiz results, and screenshot uploads are
+              stored separately on this browser using their class and name.
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -758,6 +998,7 @@ export default function Home() {
                 color: "#7c3aed",
                 fontWeight: 700,
                 letterSpacing: 0.3,
+                marginBottom: 8,
               }}
             >
               APSR Computing Platform
@@ -766,14 +1007,66 @@ export default function Home() {
               style={{
                 fontSize: 52,
                 lineHeight: 1.05,
-                margin: "8px 0 10px",
+                margin: "0 0 10px",
                 color: pastel.title,
               }}
             >
               APSR Year 5 Computing
             </h1>
-            <p style={{ fontSize: 22, margin: 0 }}>Selection in Scratch</p>
+            <p style={{ fontSize: 22, margin: "0 0 10px" }}>
+              Selection in Scratch
+            </p>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  background: "rgba(255,255,255,0.8)",
+                  border: `1px solid ${pastel.border}`,
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: pastel.title,
+                }}
+              >
+                {profile.className}
+              </span>
+              <span
+                style={{
+                  background: "rgba(255,255,255,0.8)",
+                  border: `1px solid ${pastel.border}`,
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  color: pastel.title,
+                }}
+              >
+                {profile.studentName}
+              </span>
+              <button
+                onClick={switchLearner}
+                style={{
+                  border: `1px solid ${pastel.border}`,
+                  background: pastel.panel,
+                  color: pastel.title,
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Switch Pupil
+              </button>
+            </div>
           </div>
+
           <div
             style={{
               minWidth: 320,
@@ -843,13 +1136,14 @@ export default function Home() {
               justifyContent: "space-between",
               alignItems: "center",
               marginBottom: 18,
+              gap: 12,
             }}
           >
             <h2 style={{ fontSize: 34, margin: 0, color: pastel.title }}>
               Lessons
             </h2>
             <button
-              onClick={resetProgress}
+              onClick={resetCurrentLearnerProgress}
               style={{
                 border: `1px solid ${pastel.border}`,
                 background: pastel.panelLilac,
@@ -878,6 +1172,7 @@ export default function Home() {
               >
                 {term}
               </div>
+
               {groupedLessons[term].map((lesson) => {
                 const active = selectedLessonId === lesson.id;
                 const done = completed.includes(lesson.id);
@@ -1019,6 +1314,7 @@ export default function Home() {
                   {selectedLesson.description}
                 </p>
               </div>
+
               {submittedResult?.submitted && (
                 <div
                   style={{
@@ -1170,6 +1466,7 @@ export default function Home() {
                   locked and cannot be retaken.
                 </p>
               </div>
+
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                 <span
                   style={{
@@ -1219,6 +1516,7 @@ export default function Home() {
                   >
                     {qIndex + 1}. {question.prompt}
                   </div>
+
                   <div style={{ display: "grid", gap: 10 }}>
                     {question.options.map((option, oIndex) => {
                       const chosen = selectedAnswers[qIndex] === oIndex;
@@ -1229,6 +1527,7 @@ export default function Home() {
                         submittedResult?.submitted &&
                         chosen &&
                         question.answer !== oIndex;
+
                       return (
                         <button
                           key={oIndex}
@@ -1280,6 +1579,7 @@ export default function Home() {
                   ? `Final score: ${submittedResult.score}/10. This quiz is now locked.`
                   : "Choose one answer for each question, then submit once."}
               </div>
+
               <button
                 onClick={submitQuiz}
                 disabled={submittedResult?.submitted}
@@ -1323,6 +1623,7 @@ export default function Home() {
             <p style={{ fontSize: 20, lineHeight: 1.7, marginTop: 0 }}>
               {selectedLesson.scratchTask}
             </p>
+
             <div
               style={{
                 display: "flex",
@@ -1348,6 +1649,7 @@ export default function Home() {
               >
                 Open Scratch in a new tab
               </a>
+
               <button
                 onClick={markComplete}
                 style={{
@@ -1527,6 +1829,7 @@ export default function Home() {
             >
               Key Vocabulary
             </h3>
+
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               {selectedLesson.vocab.map((word) => (
                 <span
