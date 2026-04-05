@@ -42,6 +42,8 @@ const CLASS_OPTIONS = [
 
 const REGISTRY_KEY = "year5-pupil-registry";
 const CURRENT_PROFILE_KEY = "year5-current-profile";
+const TEACHER_UNLOCKED_KEY = "year5-teacher-unlocked";
+const TEACHER_PASSWORD = "APSR2026";
 const TOTAL_LESSONS = 12;
 
 const pastel = {
@@ -295,8 +297,18 @@ export default function TeacherDashboardPage() {
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [currentProfileKey, setCurrentProfileKey] = useState<string>("");
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   useEffect(() => {
+    const savedUnlock =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem(TEACHER_UNLOCKED_KEY)
+        : null;
+
+    setIsUnlocked(savedUnlock === "true");
+
     const loadedRegistry = getRegistry();
     setRegistry(loadedRegistry);
 
@@ -393,6 +405,7 @@ export default function TeacherDashboardPage() {
 
     localStorage.removeItem(`${profile.storageKey}-progress`);
     localStorage.removeItem(`${profile.storageKey}-quiz-results`);
+    localStorage.removeItem(`${profile.storageKey}-quiz-order`);
     localStorage.removeItem(`${profile.storageKey}-screenshots`);
 
     removeProfileFromRegistry(profile);
@@ -420,6 +433,7 @@ export default function TeacherDashboardPage() {
 
     localStorage.removeItem(`${profile.storageKey}-progress`);
     localStorage.removeItem(`${profile.storageKey}-quiz-results`);
+    localStorage.removeItem(`${profile.storageKey}-quiz-order`);
     localStorage.removeItem(`${profile.storageKey}-screenshots`);
 
     setExpandedRows((prev) => ({
@@ -436,6 +450,179 @@ export default function TeacherDashboardPage() {
       [storageKey]: !prev[storageKey],
     }));
   };
+
+  const unlockTeacherArea = () => {
+    if (passwordInput === TEACHER_PASSWORD) {
+      sessionStorage.setItem(TEACHER_UNLOCKED_KEY, "true");
+      setIsUnlocked(true);
+      setPasswordInput("");
+      setPasswordError("");
+      return;
+    }
+
+    setPasswordError("Incorrect password. Please try again.");
+  };
+
+  const lockTeacherArea = () => {
+    sessionStorage.removeItem(TEACHER_UNLOCKED_KEY);
+    setIsUnlocked(false);
+    setPasswordInput("");
+    setPasswordError("");
+  };
+
+  if (!isUnlocked) {
+    return (
+      <main
+        style={{
+          padding: 32,
+          fontFamily: "Inter, Arial, sans-serif",
+          maxWidth: 920,
+          margin: "0 auto",
+          background: pastel.page,
+          color: pastel.text,
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            background:
+              "linear-gradient(135deg, #fdf2f8 0%, #eff6ff 45%, #ecfeff 100%)",
+            border: `1px solid ${pastel.border}`,
+            borderRadius: 28,
+            padding: 32,
+            boxShadow: pastel.shadow,
+          }}
+        >
+          <div style={{ marginBottom: 24 }}>
+            <div
+              style={{
+                fontSize: 14,
+                color: "#7c3aed",
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                marginBottom: 8,
+              }}
+            >
+              APSR Computing Platform
+            </div>
+            <h1
+              style={{
+                fontSize: 46,
+                lineHeight: 1.05,
+                margin: "0 0 10px",
+                color: pastel.title,
+              }}
+            >
+              Teacher Dashboard
+            </h1>
+            <p style={{ fontSize: 20, margin: 0, maxWidth: 720 }}>
+              Enter the teacher password to open the dashboard on this device.
+            </p>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(255,255,255,0.82)",
+              border: `1px solid ${pastel.border}`,
+              borderRadius: 24,
+              padding: 24,
+              display: "grid",
+              gap: 16,
+            }}
+          >
+            <label
+              style={{
+                fontSize: 16,
+                fontWeight: 800,
+                color: pastel.title,
+              }}
+            >
+              Password
+            </label>
+
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(event) => {
+                setPasswordInput(event.target.value);
+                if (passwordError) setPasswordError("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") unlockTeacherArea();
+              }}
+              placeholder="Enter teacher password"
+              style={{
+                width: "100%",
+                padding: "16px 18px",
+                borderRadius: 16,
+                border: passwordError
+                  ? "1px solid #fca5a5"
+                  : `1px solid ${pastel.border}`,
+                fontSize: 18,
+                outline: "none",
+                background: "#ffffff",
+              }}
+            />
+
+            {passwordError && (
+              <div
+                style={{
+                  color: "#b91c1c",
+                  fontWeight: 700,
+                  fontSize: 14,
+                }}
+              >
+                {passwordError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button
+                onClick={unlockTeacherArea}
+                style={{
+                  padding: "14px 18px",
+                  borderRadius: 16,
+                  border: "none",
+                  background:
+                    "linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%)",
+                  color: "#ffffff",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                Unlock Dashboard
+              </button>
+
+              <button
+                onClick={() => router.push("/")}
+                style={{
+                  border: `1px solid ${pastel.border}`,
+                  background: "#ffffff",
+                  color: pastel.title,
+                  borderRadius: 16,
+                  padding: "14px 18px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                Return to Pupil App
+              </button>
+            </div>
+
+            <div style={{ fontSize: 14, color: "#64748b", lineHeight: 1.6 }}>
+              This is a local classroom password gate only. It is not a full
+              authentication system.
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -501,6 +688,22 @@ export default function TeacherDashboardPage() {
           </div>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button
+              onClick={lockTeacherArea}
+              style={{
+                border: "1px solid #fed7aa",
+                background: "#fff7ed",
+                color: "#c2410c",
+                borderRadius: 16,
+                padding: "14px 18px",
+                fontWeight: 800,
+                cursor: "pointer",
+                fontSize: 16,
+              }}
+            >
+              Lock Dashboard
+            </button>
+
             <button
               onClick={() => router.push("/")}
               style={{
