@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
 type Lesson = {
   id: number;
@@ -571,14 +571,20 @@ const pastel = {
   panelBlue: "#eff6ff",
   panelMint: "#ecfeff",
   panelLilac: "#f5f3ff",
+  panelPeach: "#fff7ed",
   border: "#dbe4f0",
   accent: "#7c3aed",
   accentSoft: "#ede9fe",
   navy: "#334155",
   green: "#10b981",
   greenSoft: "#d1fae5",
+  amber: "#f59e0b",
+  amberSoft: "#fef3c7",
+  rose: "#f43f5e",
   shadow: "0 10px 30px rgba(148, 163, 184, 0.14)",
 };
+
+type ScreenshotMap = Record<number, string>;
 
 export default function Home() {
   const [selectedLessonId, setSelectedLessonId] = useState(1);
@@ -587,12 +593,16 @@ export default function Home() {
   const [currentAnswers, setCurrentAnswers] = useState<Record<number, number[]>>(
     {}
   );
+  const [screenshots, setScreenshots] = useState<ScreenshotMap>({});
 
   useEffect(() => {
     const savedProgress = localStorage.getItem("year5-computing-progress");
     const savedQuiz = localStorage.getItem("year5-computing-quiz-results");
+    const savedScreenshots = localStorage.getItem("year5-computing-screenshots");
+
     if (savedProgress) setCompleted(JSON.parse(savedProgress));
     if (savedQuiz) setQuizState(JSON.parse(savedQuiz));
+    if (savedScreenshots) setScreenshots(JSON.parse(savedScreenshots));
   }, []);
 
   useEffect(() => {
@@ -603,6 +613,10 @@ export default function Home() {
     localStorage.setItem("year5-computing-quiz-results", JSON.stringify(quizState));
   }, [quizState]);
 
+  useEffect(() => {
+    localStorage.setItem("year5-computing-screenshots", JSON.stringify(screenshots));
+  }, [screenshots]);
+
   const selectedLesson =
     lessons.find((lesson) => lesson.id === selectedLessonId) || lessons[0];
   const quiz = useMemo(() => buildQuiz(selectedLesson), [selectedLesson]);
@@ -610,6 +624,7 @@ export default function Home() {
   const selectedAnswers =
     currentAnswers[selectedLesson.id] || Array(quiz.length).fill(-1);
   const progress = Math.round((completed.length / lessons.length) * 100);
+  const selectedScreenshot = screenshots[selectedLesson.id];
 
   const groupedLessons = useMemo(
     () => ({
@@ -633,8 +648,10 @@ export default function Home() {
     setCompleted([]);
     setQuizState({});
     setCurrentAnswers({});
+    setScreenshots({});
     localStorage.removeItem("year5-computing-progress");
     localStorage.removeItem("year5-computing-quiz-results");
+    localStorage.removeItem("year5-computing-screenshots");
   };
 
   const chooseAnswer = (questionIndex: number, optionIndex: number) => {
@@ -662,6 +679,44 @@ export default function Home() {
         answers: selectedAnswers,
       },
     }));
+  };
+
+  const handleScreenshotUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file.");
+      return;
+    }
+
+    const maxSizeInBytes = 2 * 1024 * 1024;
+    if (file.size > maxSizeInBytes) {
+      alert("Please upload an image smaller than 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === "string") {
+        setScreenshots((prev) => ({
+          ...prev,
+          [selectedLesson.id]: result,
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+
+    event.target.value = "";
+  };
+
+  const clearScreenshot = () => {
+    setScreenshots((prev) => {
+      const updated = { ...prev };
+      delete updated[selectedLesson.id];
+      return updated;
+    });
   };
 
   return (
@@ -826,6 +881,8 @@ export default function Home() {
               {groupedLessons[term].map((lesson) => {
                 const active = selectedLessonId === lesson.id;
                 const done = completed.includes(lesson.id);
+                const hasScreenshot = Boolean(screenshots[lesson.id]);
+
                 return (
                   <button
                     key={lesson.id}
@@ -875,17 +932,38 @@ export default function Home() {
                     >
                       {lesson.description}
                     </div>
-                    {done && (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          color: pastel.green,
-                          fontWeight: 800,
-                        }}
-                      >
-                        ✓ Completed
-                      </div>
-                    )}
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        marginTop: 10,
+                      }}
+                    >
+                      {done && (
+                        <span
+                          style={{
+                            color: pastel.green,
+                            fontWeight: 800,
+                            fontSize: 13,
+                          }}
+                        >
+                          ✓ Completed
+                        </span>
+                      )}
+                      {hasScreenshot && (
+                        <span
+                          style={{
+                            color: "#b45309",
+                            fontWeight: 800,
+                            fontSize: 13,
+                          }}
+                        >
+                          📷 Screenshot added
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -1245,7 +1323,14 @@ export default function Home() {
             <p style={{ fontSize: 20, lineHeight: 1.7, marginTop: 0 }}>
               {selectedLesson.scratchTask}
             </p>
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 18 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 14,
+                flexWrap: "wrap",
+                marginTop: 18,
+              }}
+            >
               <a
                 href={selectedLesson.scratchLink}
                 target="_blank"
@@ -1279,6 +1364,148 @@ export default function Home() {
                 Mark Lesson Complete
               </button>
             </div>
+          </div>
+
+          <div
+            style={{
+              background: pastel.panelPeach,
+              border: `1px solid ${pastel.border}`,
+              borderRadius: 24,
+              padding: 28,
+              boxShadow: pastel.shadow,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 16,
+                alignItems: "center",
+                flexWrap: "wrap",
+                marginBottom: 14,
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    fontSize: 32,
+                    marginTop: 0,
+                    marginBottom: 8,
+                    color: pastel.title,
+                  }}
+                >
+                  Project Screenshot Upload
+                </h3>
+                <p style={{ fontSize: 18, lineHeight: 1.6, margin: 0 }}>
+                  Upload a screenshot of your Scratch work for this lesson.
+                  This stays on this browser only.
+                </p>
+              </div>
+
+              {selectedScreenshot && (
+                <span
+                  style={{
+                    background: pastel.amberSoft,
+                    color: "#92400e",
+                    borderRadius: 999,
+                    padding: "10px 14px",
+                    fontWeight: 800,
+                  }}
+                >
+                  Screenshot saved
+                </span>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                flexWrap: "wrap",
+                marginBottom: 18,
+              }}
+            >
+              <label
+                style={{
+                  display: "inline-block",
+                  padding: "14px 20px",
+                  background: "white",
+                  color: pastel.title,
+                  borderRadius: 14,
+                  border: `1px solid ${pastel.border}`,
+                  fontWeight: 800,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                Choose Image
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleScreenshotUpload}
+                  style={{ display: "none" }}
+                />
+              </label>
+
+              {selectedScreenshot && (
+                <button
+                  onClick={clearScreenshot}
+                  style={{
+                    padding: "14px 20px",
+                    background: "#fff1f2",
+                    color: pastel.rose,
+                    borderRadius: 14,
+                    border: "1px solid #fecdd3",
+                    cursor: "pointer",
+                    fontWeight: 800,
+                    fontSize: 16,
+                  }}
+                >
+                  Remove Screenshot
+                </button>
+              )}
+            </div>
+
+            <div style={{ fontSize: 14, color: "#78716c", marginBottom: 18 }}>
+              Accepted: PNG, JPG, WEBP • Maximum size: 2MB
+            </div>
+
+            {selectedScreenshot ? (
+              <div
+                style={{
+                  background: "white",
+                  border: `1px solid ${pastel.border}`,
+                  borderRadius: 20,
+                  padding: 16,
+                }}
+              >
+                <img
+                  src={selectedScreenshot}
+                  alt={`Scratch project screenshot for ${selectedLesson.title}`}
+                  style={{
+                    width: "100%",
+                    maxHeight: 500,
+                    objectFit: "contain",
+                    borderRadius: 14,
+                    display: "block",
+                    background: "#f8fafc",
+                  }}
+                />
+              </div>
+            ) : (
+              <div
+                style={{
+                  border: "2px dashed #fdba74",
+                  borderRadius: 20,
+                  padding: 28,
+                  background: "rgba(255,255,255,0.7)",
+                  color: "#9a3412",
+                  fontSize: 17,
+                }}
+              >
+                No screenshot uploaded yet for this lesson.
+              </div>
+            )}
           </div>
 
           <div
