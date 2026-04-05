@@ -1,118 +1,115 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const lessons = [
-  {
-    title: "Conditions",
-    description: "Understanding conditions in Scratch",
-    objective: "I can explain that a condition can be true or false.",
-    task: "Create a sprite action that only happens when one rule is true.",
-    scratch: "https://scratch.mit.edu/",
-  },
-  {
-    title: "If... Then...",
-    description: "Single outcome selection",
-    objective: "I can use an if... then... block to make a simple decision.",
-    task: "Create a sprite that reacts only when a condition is met.",
-    scratch: "https://scratch.mit.edu/",
-  },
-  {
-    title: "If... Then... Else...",
-    description: "Branching logic",
-    objective: "I can create code with two different outcomes.",
-    task: "Create a quiz-style response with a correct and incorrect outcome.",
-    scratch: "https://scratch.mit.edu/",
-  },
+  { id: 1, title: "Conditions", description: "Understanding conditions", objective: "Explain true/false conditions", task: "Create an action when a rule is true" },
+  { id: 2, title: "If... Then...", description: "Single outcome selection", objective: "Use if... then...", task: "Make a sprite react to a condition" },
+  { id: 3, title: "If... Then... Else...", description: "Branching logic", objective: "Use two outcomes", task: "Create correct/incorrect responses" },
 ];
 
 export default function Home() {
-  const [selectedLesson, setSelectedLesson] = useState(lessons[0]);
+  const [selected, setSelected] = useState(lessons[0]);
+  const [completed, setCompleted] = useState<number[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("progress");
+    if (saved) setCompleted(JSON.parse(saved));
+  }, []);
+
+  const markComplete = () => {
+    if (!completed.includes(selected.id)) {
+      const updated = [...completed, selected.id];
+      setCompleted(updated);
+      localStorage.setItem("progress", JSON.stringify(updated));
+    }
+  };
+
+  const progress = Math.round((completed.length / lessons.length) * 100);
 
   return (
-    <main style={{ padding: 30, fontFamily: "Arial, sans-serif", maxWidth: 1400 }}>
+    <main style={{ padding: 30, fontFamily: "Arial", maxWidth: 1400 }}>
       <h1>APSR Year 5 Computing</h1>
       <p>Selection in Scratch</p>
 
-      <div style={{ display: "flex", gap: 24, marginTop: 24, alignItems: "flex-start" }}>
-        <aside style={{ width: 280 }}>
+      <div style={{ marginTop: 10, marginBottom: 20 }}>
+        <strong>Progress: {progress}%</strong>
+        <div style={{ height: 10, background: "#eee", marginTop: 5 }}>
+          <div style={{ width: `${progress}%`, height: 10, background: "#0f172a" }} />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 24 }}>
+        {/* Sidebar */}
+        <div style={{ width: 280 }}>
           <h3>Lessons</h3>
-          {lessons.map((lesson) => (
+          {lessons.map((l) => (
             <button
-              key={lesson.title}
-              onClick={() => setSelectedLesson(lesson)}
+              key={l.id}
+              onClick={() => setSelected(l)}
               style={{
                 width: "100%",
-                textAlign: "left",
                 padding: 12,
-                marginBottom: 12,
-                cursor: "pointer",
-                border: "1px solid #ccc",
-                background: selectedLesson.title === lesson.title ? "#dbeafe" : "#f5f5f5",
+                marginBottom: 10,
+                textAlign: "left",
+                background: selected.id === l.id ? "#dbeafe" : "#f5f5f5",
                 borderRadius: 8,
+                border: "1px solid #ccc",
               }}
             >
-              <strong>{lesson.title}</strong>
-              <div style={{ fontSize: 13, marginTop: 4 }}>{lesson.description}</div>
+              <strong>{l.title}</strong>
+              <div style={{ fontSize: 12 }}>{l.description}</div>
+              {completed.includes(l.id) && <div>✅ Completed</div>}
             </button>
           ))}
-        </aside>
+        </div>
 
-        <section style={{ flex: 1 }}>
-          <h2>{selectedLesson.title}</h2>
-          <p>{selectedLesson.description}</p>
+        {/* Main */}
+        <div style={{ flex: 1 }}>
+          <h2>{selected.title}</h2>
+          <p>{selected.description}</p>
 
-          <div
-            style={{
-              border: "1px solid #ddd",
-              borderRadius: 10,
-              padding: 20,
-              marginTop: 20,
-              background: "#fafafa",
-            }}
-          >
+          <div style={{ background: "#fafafa", padding: 20, borderRadius: 10 }}>
             <h3>Learning Objective</h3>
-            <p>{selectedLesson.objective}</p>
+            <p>{selected.objective}</p>
 
             <h3>Scratch Task</h3>
-            <p>{selectedLesson.task}</p>
+            <p>{selected.task}</p>
 
-            <div style={{ marginTop: 16 }}>
-              <a
-                href={selectedLesson.scratch}
-                target="_blank"
-                rel="noreferrer"
+            <a
+              href="https://scratch.mit.edu/"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-block",
+                marginTop: 10,
+                padding: "10px 16px",
+                background: "#0f172a",
+                color: "white",
+                borderRadius: 6,
+                textDecoration: "none",
+              }}
+            >
+              Open Scratch
+            </a>
+
+            <div style={{ marginTop: 20 }}>
+              <button
+                onClick={markComplete}
                 style={{
-                  display: "inline-block",
-                  padding: "12px 18px",
-                  background: "#0f172a",
+                  padding: "10px 16px",
+                  background: "green",
                   color: "white",
-                  textDecoration: "none",
-                  borderRadius: 8,
-                  fontWeight: 600,
+                  borderRadius: 6,
+                  border: "none",
+                  cursor: "pointer",
                 }}
               >
-                Open Scratch in a new tab
-              </a>
+                Mark Lesson Complete
+              </button>
             </div>
           </div>
-
-          <div
-            style={{
-              border: "1px dashed #bbb",
-              borderRadius: 10,
-              padding: 20,
-              marginTop: 24,
-              background: "#fff",
-            }}
-          >
-            <h3>Teacher Note</h3>
-            <p>
-              Scratch cannot be embedded directly here because the Scratch website blocks iframe
-              access. Pupils should click the button above to open Scratch in a separate tab.
-            </p>
-          </div>
-        </section>
+        </div>
       </div>
     </main>
   );
