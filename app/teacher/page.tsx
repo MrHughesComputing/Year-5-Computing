@@ -16,6 +16,7 @@ type QuizResult = {
 };
 
 type ScreenshotMap = Record<number, string>;
+type QuizMap = Record<number, QuizResult>;
 
 type TeacherPupilRow = LearnerProfile & {
   completedLessons: number;
@@ -25,9 +26,12 @@ type TeacherPupilRow = LearnerProfile & {
   screenshotCount: number;
   status: "good" | "partial" | "not-started";
   hasAnyActivity: boolean;
+  completedLessonIds: number[];
+  quizMap: QuizMap;
 };
 
 type SortMode = "name" | "progress";
+type ActivityFilter = "all" | "active" | "not-started";
 
 const CLASS_OPTIONS = [
   "Year 5 Eucalyptus",
@@ -61,6 +65,7 @@ const pastel = {
   amberSoft: "#fef3c7",
   rose: "#f43f5e",
   roseSoft: "#fff1f2",
+  roseBorder: "#fecdd3",
   blueSoft: "#dbeafe",
   shadow: "0 10px 30px rgba(148, 163, 184, 0.14)",
 };
@@ -101,7 +106,7 @@ function safeParseArray(raw: string | null): number[] {
   }
 }
 
-function safeParseQuizMap(raw: string | null): Record<number, QuizResult> {
+function safeParseQuizMap(raw: string | null): QuizMap {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
@@ -121,7 +126,7 @@ function safeParseScreenshotMap(raw: string | null): ScreenshotMap {
   }
 }
 
-function buildTeacherRow(profile: LearnerProfile): TeacherPupilRow {
+function getProfileStorage(profile: LearnerProfile) {
   const progressRaw =
     typeof window !== "undefined"
       ? localStorage.getItem(`${profile.storageKey}-progress`)
@@ -135,11 +140,24 @@ function buildTeacherRow(profile: LearnerProfile): TeacherPupilRow {
       ? localStorage.getItem(`${profile.storageKey}-screenshots`)
       : null;
 
-  const completed = safeParseArray(progressRaw);
+  const completedLessonIds = safeParseArray(progressRaw)
+    .filter((value) => Number.isInteger(value))
+    .sort((a, b) => a - b);
+
   const quizMap = safeParseQuizMap(quizRaw);
   const screenshots = safeParseScreenshotMap(screenshotsRaw);
 
-  const completedLessons = completed.length;
+  return {
+    completedLessonIds,
+    quizMap,
+    screenshots,
+  };
+}
+
+function buildTeacherRow(profile: LearnerProfile): TeacherPupilRow {
+  const { completedLessonIds, quizMap, screenshots } = getProfileStorage(profile);
+
+  const completedLessons = completedLessonIds.length;
   const quizCompletedCount = Object.values(quizMap).filter(
     (item) => item?.submitted
   ).length;
@@ -162,6 +180,8 @@ function buildTeacherRow(profile: LearnerProfile): TeacherPupilRow {
     screenshotCount,
     status,
     hasAnyActivity,
+    completedLessonIds,
+    quizMap,
   };
 }
 
@@ -174,6 +194,9 @@ function statusConfig(status: TeacherPupilRow["status"]) {
       bg: "#ecfdf5",
       border: "#a7f3d0",
       progressBar: "linear-gradient(90deg, #10b981 0%, #34d399 100%)",
+      ring: "#10b981",
+      cardBorder: "#bbf7d0",
+      cardGlow: "0 10px 30px rgba(16, 185, 129, 0.08)",
     };
   }
 
@@ -185,6 +208,9 @@ function statusConfig(status: TeacherPupilRow["status"]) {
       bg: "#fffbeb",
       border: "#fcd34d",
       progressBar: "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)",
+      ring: "#f59e0b",
+      cardBorder: "#fde68a",
+      cardGlow: "0 10px 30px rgba(245, 158, 11, 0.08)",
     };
   }
 
@@ -195,7 +221,69 @@ function statusConfig(status: TeacherPupilRow["status"]) {
     bg: "#fef2f2",
     border: "#fca5a5",
     progressBar: "linear-gradient(90deg, #f43f5e 0%, #fb7185 100%)",
+    ring: "#f43f5e",
+    cardBorder: "#fecdd3",
+    cardGlow: "0 10px 30px rgba(244, 63, 94, 0.1)",
   };
+}
+
+function ProgressRing({
+  value,
+  colour,
+}: {
+  value: number;
+  colour: string;
+}) {
+  const size = 84;
+  const strokeWidth = 8;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference - (value / 100) * circumference;
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        position: "relative",
+        display: "grid",
+        placeItems: "center",
+        flexShrink: 0,
+      }}
+    >
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#e2e8f0"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={colour}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+        />
+      </svg>
+      <div
+        style={{
+          position: "absolute",
+          fontWeight: 900,
+          fontSize: 18,
+          color: pastel.title,
+        }}
+      >
+        {value}%
+      </div>
+    </div>
+  );
 }
 
 export default function TeacherDashboardPage() {
@@ -204,7 +292,9 @@ export default function TeacherDashboardPage() {
   const [registry, setRegistry] = useState<LearnerProfile[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>(CLASS_OPTIONS[0]);
   const [sortMode, setSortMode] = useState<SortMode>("name");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [currentProfileKey, setCurrentProfileKey] = useState<string>("");
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const loadedRegistry = getRegistry();
@@ -229,8 +319,16 @@ export default function TeacherDashboardPage() {
     return registry.map(buildTeacherRow);
   }, [registry]);
 
+  const selectedClassRows = useMemo(() => {
+    return teacherRows.filter((row) => row.className === selectedClass);
+  }, [teacherRows, selectedClass]);
+
   const classRows = useMemo(() => {
-    const filtered = teacherRows.filter((row) => row.className === selectedClass);
+    const filtered = selectedClassRows.filter((row) => {
+      if (activityFilter === "active") return row.hasAnyActivity;
+      if (activityFilter === "not-started") return row.status === "not-started";
+      return true;
+    });
 
     const sorted = [...filtered].sort((a, b) => {
       if (sortMode === "progress") {
@@ -244,32 +342,33 @@ export default function TeacherDashboardPage() {
     });
 
     return sorted;
-  }, [teacherRows, selectedClass, sortMode]);
+  }, [selectedClassRows, activityFilter, sortMode]);
 
   const classSummary = useMemo(() => {
-    const rows = teacherRows.filter((row) => row.className === selectedClass);
-    const total = rows.length;
-    const active = rows.filter((row) => row.hasAnyActivity).length;
-    const notStarted = rows.filter((row) => row.status === "not-started").length;
-    const totalCompletedLessons = rows.reduce(
-      (sum, row) => sum + row.completedLessons,
-      0
-    );
+    const total = selectedClassRows.length;
+    const active = selectedClassRows.filter((row) => row.hasAnyActivity).length;
+    const notStarted = selectedClassRows.filter(
+      (row) => row.status === "not-started"
+    ).length;
+    const atRisk = selectedClassRows.filter(
+      (row) => row.status === "not-started" || row.progressPercent < 25
+    ).length;
     const averageProgress =
       total === 0
         ? 0
         : Math.round(
-            rows.reduce((sum, row) => sum + row.progressPercent, 0) / total
+            selectedClassRows.reduce((sum, row) => sum + row.progressPercent, 0) /
+              total
           );
 
     return {
       total,
       active,
       notStarted,
-      totalCompletedLessons,
+      atRisk,
       averageProgress,
     };
-  }, [teacherRows, selectedClass]);
+  }, [selectedClassRows]);
 
   const highestProgressValue = useMemo(() => {
     if (classRows.length === 0) return 0;
@@ -279,6 +378,10 @@ export default function TeacherDashboardPage() {
   const openPupil = (profile: LearnerProfile) => {
     localStorage.setItem(CURRENT_PROFILE_KEY, JSON.stringify(profile));
     router.push("/");
+  };
+
+  const refreshRegistry = () => {
+    setRegistry(getRegistry());
   };
 
   const deletePupil = (profile: LearnerProfile) => {
@@ -299,7 +402,39 @@ export default function TeacherDashboardPage() {
       setCurrentProfileKey("");
     }
 
-    setRegistry(getRegistry());
+    setExpandedRows((prev) => {
+      const updated = { ...prev };
+      delete updated[profile.storageKey];
+      return updated;
+    });
+
+    refreshRegistry();
+  };
+
+  const resetPupil = (profile: LearnerProfile) => {
+    const confirmed = window.confirm(
+      `Reset all progress for this pupil?\n\n${profile.studentName} • ${profile.className}\n\nThis will clear progress, quiz results, and screenshots, but keep the pupil profile.`
+    );
+
+    if (!confirmed) return;
+
+    localStorage.removeItem(`${profile.storageKey}-progress`);
+    localStorage.removeItem(`${profile.storageKey}-quiz-results`);
+    localStorage.removeItem(`${profile.storageKey}-screenshots`);
+
+    setExpandedRows((prev) => ({
+      ...prev,
+      [profile.storageKey]: false,
+    }));
+
+    refreshRegistry();
+  };
+
+  const toggleDetails = (storageKey: string) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [storageKey]: !prev[storageKey],
+    }));
   };
 
   return (
@@ -307,7 +442,7 @@ export default function TeacherDashboardPage() {
       style={{
         padding: 32,
         fontFamily: "Inter, Arial, sans-serif",
-        maxWidth: 1480,
+        maxWidth: 1520,
         margin: "0 auto",
         background: pastel.page,
         color: pastel.text,
@@ -358,9 +493,10 @@ export default function TeacherDashboardPage() {
               Teacher Dashboard
             </h1>
 
-            <p style={{ fontSize: 20, margin: 0, maxWidth: 780 }}>
-              View pupils saved on this device, filter by class, and open a pupil
-              learning space in one click.
+            <p style={{ fontSize: 20, margin: 0, maxWidth: 820 }}>
+              View pupils saved on this device, identify who is thriving or at
+              risk, reset pupil learning data without deleting profiles, and open
+              any pupil space instantly.
             </p>
           </div>
 
@@ -508,9 +644,77 @@ export default function TeacherDashboardPage() {
                   gap: 12,
                 }}
               >
+                <span>At risk</span>
+                <strong>{classSummary.atRisk}</strong>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
                 <span>Average progress</span>
                 <strong>{classSummary.averageProgress}%</strong>
               </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: pastel.panelSoft,
+              border: `1px solid ${pastel.border}`,
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: "#7c3aed",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 10,
+              }}
+            >
+              Show Pupils
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {(["all", "active", "not-started"] as ActivityFilter[]).map(
+                (filterValue) => {
+                  const active = activityFilter === filterValue;
+                  const label =
+                    filterValue === "all"
+                      ? "All"
+                      : filterValue === "active"
+                      ? "Only active"
+                      : "Only not started";
+
+                  return (
+                    <button
+                      key={filterValue}
+                      onClick={() => setActivityFilter(filterValue)}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: 999,
+                        border: active
+                          ? "1px solid #c4b5fd"
+                          : `1px solid ${pastel.border}`,
+                        background: active ? pastel.accentSoft : "#ffffff",
+                        color: pastel.title,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                }
+              )}
             </div>
           </div>
 
@@ -619,7 +823,7 @@ export default function TeacherDashboardPage() {
               }}
             >
               <div style={{ fontSize: 14, color: "#64748b", marginBottom: 8 }}>
-                Pupils on Device
+                Visible Pupils
               </div>
               <div
                 style={{
@@ -628,7 +832,7 @@ export default function TeacherDashboardPage() {
                   color: pastel.title,
                 }}
               >
-                {classSummary.total}
+                {classRows.length}
               </div>
             </div>
 
@@ -665,7 +869,7 @@ export default function TeacherDashboardPage() {
               }}
             >
               <div style={{ fontSize: 14, color: "#64748b", marginBottom: 8 }}>
-                No Activity
+                At Risk / No Start
               </div>
               <div
                 style={{
@@ -674,7 +878,7 @@ export default function TeacherDashboardPage() {
                   color: pastel.title,
                 }}
               >
-                {classSummary.notStarted}
+                {classSummary.atRisk}
               </div>
             </div>
           </div>
@@ -692,14 +896,14 @@ export default function TeacherDashboardPage() {
                 boxShadow: pastel.shadow,
               }}
             >
-              No saved pupils found for {selectedClass} on this browser.
+              No saved pupils found for this view.
             </div>
           ) : (
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                gap: 18,
+                gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+                gap: 22,
               }}
             >
               {classRows.map((row) => {
@@ -708,30 +912,35 @@ export default function TeacherDashboardPage() {
                   row.progressPercent === highestProgressValue &&
                   highestProgressValue > 0;
                 const isCurrent = row.storageKey === currentProfileKey;
+                const showDetails = Boolean(expandedRows[row.storageKey]);
+                const isAtRisk =
+                  row.status === "not-started" || row.progressPercent < 25;
 
                 return (
                   <div
                     key={row.storageKey}
                     style={{
                       background: "#ffffff",
-                      border: `1px solid ${pastel.border}`,
+                      border: isAtRisk
+                        ? `1px solid ${pastel.roseBorder}`
+                        : `1px solid ${status.cardBorder}`,
                       borderRadius: 24,
-                      padding: 20,
-                      boxShadow: pastel.shadow,
+                      padding: 22,
+                      boxShadow: isAtRisk ? status.cardGlow : pastel.shadow,
                       display: "grid",
-                      gap: 14,
+                      gap: 16,
                     }}
                   >
                     <div
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        gap: 12,
+                        gap: 16,
                         alignItems: "start",
                         flexWrap: "wrap",
                       }}
                     >
-                      <div>
+                      <div style={{ flex: 1, minWidth: 180 }}>
                         <div
                           style={{
                             fontSize: 24,
@@ -747,57 +956,69 @@ export default function TeacherDashboardPage() {
                         <div style={{ fontSize: 14, color: "#64748b" }}>
                           {row.className}
                         </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexWrap: "wrap",
+                            marginTop: 12,
+                          }}
+                        >
+                          {isCurrent && (
+                            <span
+                              style={{
+                                background: pastel.panelBlue,
+                                color: "#1d4ed8",
+                                border: "1px solid #bfdbfe",
+                                borderRadius: 999,
+                                padding: "8px 10px",
+                                fontWeight: 800,
+                                fontSize: 12,
+                              }}
+                            >
+                              Current pupil
+                            </span>
+                          )}
+
+                          {isHighestProgress && (
+                            <span
+                              style={{
+                                background: pastel.panelPeach,
+                                color: "#b45309",
+                                border: "1px solid #fed7aa",
+                                borderRadius: 999,
+                                padding: "8px 10px",
+                                fontWeight: 800,
+                                fontSize: 12,
+                              }}
+                            >
+                              Highest progress
+                            </span>
+                          )}
+
+                          {isAtRisk && (
+                            <span
+                              style={{
+                                background: pastel.roseSoft,
+                                color: pastel.rose,
+                                border: `1px solid ${pastel.roseBorder}`,
+                                borderRadius: 999,
+                                padding: "8px 10px",
+                                fontWeight: 800,
+                                fontSize: 12,
+                              }}
+                            >
+                              At risk
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {isCurrent && (
-                          <span
-                            style={{
-                              background: pastel.panelBlue,
-                              color: "#1d4ed8",
-                              border: "1px solid #bfdbfe",
-                              borderRadius: 999,
-                              padding: "8px 10px",
-                              fontWeight: 800,
-                              fontSize: 12,
-                            }}
-                          >
-                            Current pupil
-                          </span>
-                        )}
-
-                        {isHighestProgress && (
-                          <span
-                            style={{
-                              background: pastel.panelPeach,
-                              color: "#b45309",
-                              border: "1px solid #fed7aa",
-                              borderRadius: 999,
-                              padding: "8px 10px",
-                              fontWeight: 800,
-                              fontSize: 12,
-                            }}
-                          >
-                            Highest progress
-                          </span>
-                        )}
-
-                        {!row.hasAnyActivity && (
-                          <span
-                            style={{
-                              background: pastel.roseSoft,
-                              color: pastel.rose,
-                              border: "1px solid #fecdd3",
-                              borderRadius: 999,
-                              padding: "8px 10px",
-                              fontWeight: 800,
-                              fontSize: 12,
-                            }}
-                          >
-                            No activity
-                          </span>
-                        )}
-                      </div>
+                      <ProgressRing
+                        value={row.progressPercent}
+                        colour={status.ring}
+                      />
                     </div>
 
                     <div
@@ -949,7 +1170,7 @@ export default function TeacherDashboardPage() {
                         onClick={() => openPupil(row)}
                         style={{
                           flex: 1,
-                          minWidth: 130,
+                          minWidth: 120,
                           padding: "14px 16px",
                           borderRadius: 14,
                           border: "none",
@@ -962,6 +1183,40 @@ export default function TeacherDashboardPage() {
                         }}
                       >
                         Open
+                      </button>
+
+                      <button
+                        onClick={() => toggleDetails(row.storageKey)}
+                        style={{
+                          minWidth: 120,
+                          padding: "14px 16px",
+                          borderRadius: 14,
+                          border: `1px solid ${pastel.border}`,
+                          background: "#ffffff",
+                          color: pastel.title,
+                          fontWeight: 800,
+                          fontSize: 16,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {showDetails ? "Hide Details" : "View Details"}
+                      </button>
+
+                      <button
+                        onClick={() => resetPupil(row)}
+                        style={{
+                          minWidth: 110,
+                          padding: "14px 16px",
+                          borderRadius: 14,
+                          border: "1px solid #fed7aa",
+                          background: "#fff7ed",
+                          color: "#c2410c",
+                          fontWeight: 800,
+                          fontSize: 16,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Reset
                       </button>
 
                       <button
@@ -981,6 +1236,83 @@ export default function TeacherDashboardPage() {
                         Delete
                       </button>
                     </div>
+
+                    {showDetails && (
+                      <div
+                        style={{
+                          background: "#fafcff",
+                          border: `1px solid ${pastel.border}`,
+                          borderRadius: 18,
+                          padding: 16,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 900,
+                            color: pastel.title,
+                            marginBottom: 12,
+                          }}
+                        >
+                          Quick Progress View
+                        </div>
+
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {Array.from({ length: TOTAL_LESSONS }, (_, index) => {
+                            const lessonId = index + 1;
+                            const isCompleted =
+                              row.completedLessonIds.includes(lessonId);
+                            const quizResult = row.quizMap[lessonId];
+                            const hasQuiz = Boolean(quizResult?.submitted);
+
+                            return (
+                              <div
+                                key={lessonId}
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "84px 1fr auto",
+                                  gap: 12,
+                                  alignItems: "center",
+                                  padding: "10px 12px",
+                                  borderRadius: 14,
+                                  background: "#ffffff",
+                                  border: `1px solid ${pastel.border}`,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontWeight: 800,
+                                    fontSize: 13,
+                                    color: "#64748b",
+                                  }}
+                                >
+                                  Lesson {lessonId}
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontWeight: 700,
+                                    color: isCompleted ? "#065f46" : "#b91c1c",
+                                  }}
+                                >
+                                  {isCompleted ? "✅ Completed" : "❌ Not started"}
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontWeight: 800,
+                                    color: pastel.title,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {hasQuiz ? `Quiz ${quizResult.score}/10` : "—"}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
