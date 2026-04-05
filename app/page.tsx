@@ -42,7 +42,17 @@ type LearnerProfile = {
   storageKey: string;
 };
 
-const CLASS_OPTIONS = ["Year 5 Eucalyptus", "Year 5 Hawthorne", "Year 5 Sycamore", "Year 5 Willow"];
+type StartMode = "existing" | "new";
+
+const CLASS_OPTIONS = [
+  "Year 5 Eucalyptus",
+  "Year 5 Hawthorne",
+  "Year 5 Sycamore",
+  "Year 5 Willow",
+];
+
+const REGISTRY_KEY = "year5-pupil-registry";
+const CURRENT_PROFILE_KEY = "year5-current-profile";
 
 const lessons: Lesson[] = [
   {
@@ -472,101 +482,1182 @@ const lessons: Lesson[] = [
   },
 ];
 
-function buildQuiz(lesson: Lesson): QuizQuestion[] {
-  return [
+const quizBank: Record<number, QuizQuestion[]> = {
+  1: [
     {
-      prompt: `What is the main idea of the lesson '${lesson.title}'?`,
+      prompt: "What is a condition in a program?",
       options: [
-        lesson.overview,
-        "Drawing backgrounds",
-        "Typing faster",
-        "Changing the stage size",
+        "A check that is either true or false",
+        "A way to draw a sprite",
+        "A sound effect in Scratch",
+        "A type of background",
       ],
       answer: 0,
     },
     {
-      prompt: "Which statement matches the lesson objective?",
+      prompt: "What does a program use a condition for?",
       options: [
-        lesson.objective,
-        "I can design a website",
-        "I can build a spreadsheet",
-        "I can edit a video",
+        "To decide what should happen next",
+        "To make the stage bigger",
+        "To save the project automatically",
+        "To colour the blocks",
       ],
       answer: 0,
     },
     {
-      prompt: "Why does this topic matter?",
+      prompt: "Which of these can be true or false?",
       options: [
-        lesson.whyItMatters,
-        "It makes the computer heavier",
-        "It deletes bugs automatically",
-        "It changes the mouse settings",
+        "Is the sprite touching the edge?",
+        "Move 10 steps",
+        "Play a drum sound",
+        "Switch costume",
       ],
       answer: 0,
     },
     {
-      prompt: "Which of these words belongs to this lesson vocabulary?",
-      options: [lesson.vocab[0], "printer", "folder", "camera"],
+      prompt: "Which Scratch block category often uses conditions?",
+      options: ["Control", "Looks only", "Sound only", "My Blocks only"],
       answer: 0,
     },
     {
-      prompt: "Which of these words also belongs to this lesson vocabulary?",
-      options: [lesson.vocab[1], "battery", "monitor stand", "charger"],
-      answer: 0,
-    },
-    {
-      prompt:
-        "What key question should you be able to answer by the end of the lesson?",
+      prompt: "If a condition is false, what should happen in a simple if block?",
       options: [
-        lesson.keyQuestion,
-        "What colour is the Scratch logo?",
-        "How old is Scratch?",
-        "Where is the keyboard made?",
+        "The action inside should not happen",
+        "The action should always happen",
+        "Scratch should close",
+        "The sprite should delete itself",
       ],
       answer: 0,
     },
     {
-      prompt: "Which answer shows the common misconception from this lesson?",
+      prompt: "Which word best describes what a condition does?",
+      options: ["Checks", "Paints", "Prints", "Copies"],
+      answer: 0,
+    },
+    {
+      prompt: "Why are conditions useful in games and quizzes?",
       options: [
-        lesson.misconception,
-        "You must always use ten sprites",
-        "Scratch only works online",
-        "Quizzes cannot use text",
+        "They let the program respond differently",
+        "They make code invisible",
+        "They replace all other blocks",
+        "They stop all testing",
       ],
       answer: 0,
     },
     {
-      prompt: "What should happen when the lesson is done correctly?",
+      prompt: "Which pair best matches a condition?",
+      options: ["True and false", "Up and down", "Fast and slow", "Big and small"],
+      answer: 0,
+    },
+    {
+      prompt: "What is the mistake in thinking a condition is the action itself?",
       options: [
-        lesson.correctOutcome,
-        "Nothing should happen",
+        "A condition checks; it does not do the action",
+        "A condition is always a sprite",
+        "A condition is always a sound",
+        "A condition is always a loop",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which example is most like a condition?",
+      options: [
+        "Is the space key pressed?",
+        "Say hello for 2 seconds",
+        "Turn 15 degrees",
+        "Change size by 10",
+      ],
+      answer: 0,
+    },
+  ],
+  2: [
+    {
+      prompt: "What does an if... then... block do?",
+      options: [
+        "Runs code only if a condition is true",
+        "Runs code forever without checking",
+        "Always gives two answers",
+        "Stores a score",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What happens if the condition is false in an if... then... block?",
+      options: [
+        "Nothing inside the block happens",
+        "Everything inside happens twice",
+        "Scratch crashes",
+        "The sprite disappears",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which block would fit inside the if part?",
+      options: [
+        "touching edge?",
+        "say hello",
+        "move 10 steps",
+        "switch costume",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which block could go inside the then section?",
+      options: [
+        "say hello",
+        "touching mouse-pointer?",
+        "key space pressed?",
+        "answer = yes",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is if... then... called selection?",
+      options: [
+        "Because the program selects whether to act",
+        "Because it selects a new sprite colour",
+        "Because it sorts files",
+        "Because it changes the stage name",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which sentence is correct?",
+      options: [
+        "The action happens only when the rule is met",
+        "The action happens whether the rule is true or false",
+        "The action always repeats forever",
+        "The action removes the condition",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is needed for an if... then... block to work properly?",
+      options: [
+        "A true/false condition",
+        "A microphone",
+        "A second computer",
+        "A printed worksheet",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which situation suits if... then...?",
+      options: [
+        "Make a sprite jump if the space key is pressed",
+        "Always move the sprite 10 steps",
+        "Play music the whole time",
+        "Change every backdrop at once",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What common mistake causes the action to happen all the time?",
+      options: [
+        "The condition is missing or placed wrongly",
+        "The sprite is too small",
+        "The stage is white",
+        "The project is saved",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main purpose of this lesson?",
+      options: [
+        "To make one simple decision in code",
+        "To draw quiz backgrounds",
+        "To animate costumes only",
+        "To use sound effects only",
+      ],
+      answer: 0,
+    },
+  ],
+  3: [
+    {
+      prompt: "What does an if... then... else... block allow a program to do?",
+      options: [
+        "Choose between two outcomes",
+        "Play two sounds at once",
+        "Delete two sprites",
+        "Open two projects",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "When does the else part run?",
+      options: [
+        "When the condition is false",
+        "When the condition is true",
+        "Before the project starts",
+        "Only when Scratch saves",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is else useful in a quiz?",
+      options: [
+        "It gives a different response for a wrong answer",
+        "It changes the font",
+        "It makes the sprite invisible",
+        "It stops all input",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which block helps gather the player's response?",
+      options: [
+        "ask ... and wait",
+        "move 10 steps",
+        "hide",
+        "next costume",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should go inside the condition space?",
+      options: [
+        "A check such as answer = correct response",
+        "A whole paragraph of text",
+        "A backdrop",
+        "A sound file",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which sentence is true?",
+      options: [
+        "If gives one path, else gives the other path",
+        "Else repeats the same action again",
+        "Else is used only for movement",
+        "Else works without a condition",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is branching in this lesson?",
+      options: [
+        "The program splitting into two possible outcomes",
+        "Drawing tree branches",
+        "Using two sprites together",
+        "Adding extra costumes",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which response is best for the then section?",
+      options: [
+        "Correct! Well done.",
+        "Nothing at all",
+        "Change the background every second forever",
+        "Delete the stage",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which response is best for the else section?",
+      options: [
+        "Not quite. Try again.",
+        "Always say Correct!",
+        "Ignore the answer completely",
+        "Never show any message",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What misunderstanding should pupils avoid?",
+      options: [
+        "Else is not repetition; it is the false outcome",
+        "Else means the program stops forever",
+        "Else means make a new sprite",
+        "Else is the same as repeat",
+      ],
+      answer: 0,
+    },
+  ],
+  4: [
+    {
+      prompt: "Why do we put selection inside a loop?",
+      options: [
+        "So the condition can be checked again and again",
+        "So the code becomes invisible",
+        "So the sprite never moves",
+        "So the quiz cannot start",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which loop is often used for continuous checking?",
+      options: ["forever", "wait", "say", "hide"],
+      answer: 0,
+    },
+    {
+      prompt: "What happens if an if block is not inside a loop in a live program?",
+      options: [
+        "It may only check once",
+        "It checks all the time anyway",
+        "It creates new sprites automatically",
+        "It adds sound effects by itself",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which situation needs continuous checking?",
+      options: [
+        "Seeing whether a key is pressed during a game",
+        "Saving a project name once",
+        "Typing a title once",
+        "Choosing a sprite once",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main job of the forever block here?",
+      options: [
+        "To keep repeating the check",
+        "To stop the program",
+        "To change the backdrop once",
+        "To add a new costume",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which condition could be useful in a loop?",
+      options: [
+        "touching mouse-pointer?",
+        "say hello",
+        "play sound until done",
+        "go to x: y:",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why do games often need loops and selection together?",
+      options: [
+        "Because they must respond in real time",
+        "Because they never use conditions",
+        "Because they only need backgrounds",
+        "Because loops replace all actions",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What would the sprite do if the condition becomes true while the loop runs?",
+      options: [
+        "Respond as soon as it is checked",
+        "Ignore it forever",
+        "Delete the project",
+        "Turn off Scratch",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What common mistake stops fast responses?",
+      options: [
+        "Putting the if block outside the loop",
+        "Giving the sprite a name",
+        "Using a colourful backdrop",
+        "Saving the project",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is being checked repeatedly in this lesson?",
+      options: [
+        "A condition",
+        "A printed worksheet",
+        "A mouse battery",
+        "A font choice",
+      ],
+      answer: 0,
+    },
+  ],
+  5: [
+    {
+      prompt: "What does the ask block do?",
+      options: [
+        "Collects input from the user",
+        "Changes the sprite colour",
+        "Saves the project",
+        "Deletes wrong answers",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Where is the user's typed response stored?",
+      options: ["In the answer block", "In the backdrop", "In the sprite name", "In the green flag"],
+      answer: 0,
+    },
+    {
+      prompt: "Why is the ask and answer system useful?",
+      options: [
+        "It makes the project interactive",
+        "It makes every sprite larger",
+        "It stops code from running",
+        "It removes the need for conditions",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you compare to the correct response?",
+      options: ["answer", "stage size", "costume number", "mouse pointer x"],
+      answer: 0,
+    },
+    {
+      prompt: "Which block structure works well after asking a question?",
+      options: [
+        "if... then... else...",
+        "forever only",
+        "repeat without a condition",
+        "hide and show only",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the best way to respond to a correct answer?",
+      options: [
+        "Give suitable positive feedback",
+        "Ignore it",
+        "Delete the sprite",
+        "Close the project",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the best way to respond to a wrong answer?",
+      options: [
+        "Give different feedback",
+        "Always say the answer is correct",
+        "Stop the computer",
+        "Remove the question",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should pupils avoid misunderstanding?",
+      options: [
+        "The answer block stores the response, not the question",
+        "The answer block stores a costume",
+        "The answer block stores a backdrop",
+        "The answer block stores the sprite name only",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which example uses input correctly?",
+      options: [
+        "Ask the player a question and compare answer to the correct word",
+        "Ask a question and never use the answer",
+        "Type the answer into the sprite name",
+        "Use only a move block",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main idea of this lesson?",
+      options: [
+        "Using player input in a condition",
+        "Drawing characters",
+        "Recording voice only",
+        "Making new costumes only",
+      ],
+      answer: 0,
+    },
+  ],
+  6: [
+    {
+      prompt: "What does planning a quiz mean?",
+      options: [
+        "Deciding the order, questions, and outcomes before coding",
+        "Colouring the stage before coding",
+        "Using random blocks without thinking",
+        "Typing code as fast as possible",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is planning useful?",
+      options: [
+        "It makes the program easier to build and test",
+        "It removes the need for code",
+        "It always fixes every bug",
+        "It replaces Scratch",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which should be planned before coding a question?",
+      options: [
+        "The correct answer",
+        "The laptop battery level",
+        "The classroom door colour",
+        "The font on the keyboard",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you also plan besides the questions?",
+      options: [
+        "What happens for correct and wrong answers",
+        "How many desks are in the room",
+        "What the teacher is wearing",
+        "How long the mouse cable is",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which word means a set of steps for a program?",
+      options: ["algorithm", "speaker", "printer", "screen saver"],
+      answer: 0,
+    },
+    {
+      prompt: "What could help show the order of a quiz before coding?",
+      options: ["A flowchart", "A loudspeaker", "A calculator", "A charger"],
+      answer: 0,
+    },
+    {
+      prompt: "What is a poor way to begin a larger project?",
+      options: [
+        "Coding without deciding the logic first",
+        "Writing the questions down first",
+        "Thinking about the order first",
+        "Checking the outcomes first",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is planning not a waste of time?",
+      options: [
+        "It helps avoid confusion later",
+        "It stops pupils from learning",
+        "It deletes all mistakes automatically",
+        "It is only for adults",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should happen after the planning stage?",
+      options: [
+        "Build the first question from the plan",
+        "Ignore the plan completely",
+        "Print the screen and stop",
+        "Delete the notes",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main purpose of this lesson?",
+      options: [
+        "To plan quiz logic clearly before coding",
+        "To add many sounds at random",
+        "To decorate the stage only",
+        "To make the project run forever with no input",
+      ],
+      answer: 0,
+    },
+  ],
+  7: [
+    {
+      prompt: "What does debugging mean?",
+      options: [
+        "Finding and fixing mistakes in a program",
+        "Drawing bugs on the stage",
+        "Starting every project again",
+        "Saving the project twice",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you do first when a program behaves unexpectedly?",
+      options: [
+        "Test carefully and look for the problem",
+        "Delete all the code at once",
+        "Close Scratch immediately",
+        "Add more sprites",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is it useful to test both correct and incorrect answers?",
+      options: [
+        "So you can see whether both outcomes work",
+        "So you can make the quiz longer",
+        "So you can avoid using conditions",
+        "So you can remove all feedback",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which part should you check first in selection code?",
+      options: [
+        "The condition block",
+        "The colour of the stage",
+        "The size of the teacher's screen",
+        "The computer wallpaper",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why should you change one thing at a time while debugging?",
+      options: [
+        "So you know what fixed the problem",
+        "So the program becomes confusing",
+        "So no testing is needed",
+        "So you can avoid thinking",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is a sensible debugging habit?",
+      options: [
+        "Retest after each change",
+        "Never run the code",
+        "Guess without looking",
+        "Keep adding blocks randomly",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is a logic error?",
+      options: [
+        "The code runs, but not in the way you intended",
+        "The screen is dusty",
+        "The mouse is unplugged",
+        "The backdrop is pink",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What misunderstanding should pupils avoid?",
+      options: [
+        "Debugging is not starting again; it is fixing the real problem",
+        "Debugging means never testing",
+        "Debugging means adding more sounds",
+        "Debugging means avoiding mistakes forever",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which is the best example of methodical debugging?",
+      options: [
+        "Test, spot the issue, change one part, and test again",
+        "Delete the whole project immediately",
+        "Ask Scratch to fix everything by itself",
+        "Keep clicking random blocks",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the goal of debugging?",
+      options: [
+        "To make the program work reliably",
+        "To make the quiz impossible",
+        "To remove all conditions",
+        "To stop pupils from checking work",
+      ],
+      answer: 0,
+    },
+  ],
+  8: [
+    {
+      prompt: "What makes one complete quiz question work?",
+      options: [
+        "A question, an answer check, and feedback",
+        "A backdrop and a sound only",
+        "A sprite and a costume only",
+        "A loop with no condition",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should happen after the player types an answer?",
+      options: [
+        "The program should check it",
         "The project should close",
-        "The program should stay blank",
+        "The sprite should disappear",
+        "The code should delete itself",
       ],
       answer: 0,
     },
     {
-      prompt: "What problem shows that the code or understanding is wrong?",
+      prompt: "Which block helps compare the answer with the correct response?",
       options: [
-        lesson.wrongOutcome,
-        "The project saves correctly",
-        "The code runs clearly",
-        "The user understands the task",
+        "An operator comparison block",
+        "A motion block",
+        "A looks block only",
+        "A sound block only",
       ],
       answer: 0,
     },
     {
-      prompt: "Which action should pupils take in Scratch for this lesson?",
+      prompt: "Which control block is most suitable for two outcomes?",
+      options: ["if... then... else...", "repeat 10", "wait 1 second", "hide"],
+      answer: 0,
+    },
+    {
+      prompt: "What is good advice for a first working version?",
       options: [
-        lesson.scratchTask,
-        "Change the computer wallpaper",
-        "Open a word processor",
-        "Print the screen",
+        "Keep it simple but complete",
+        "Add every feature at once",
+        "Never test it",
+        "Avoid feedback messages",
       ],
       answer: 0,
     },
-  ];
-}
+    {
+      prompt: "What does the then section usually contain?",
+      options: [
+        "Correct feedback",
+        "A new login page",
+        "A computer restart",
+        "A deleted sprite",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What does the else section usually contain?",
+      options: [
+        "Incorrect feedback",
+        "The exact same message every time",
+        "No response at all",
+        "A stage size change",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is this lesson important?",
+      options: [
+        "It combines earlier skills into a real project",
+        "It removes the need for planning",
+        "It stops pupils from improving",
+        "It only teaches decoration",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you test when your first question is built?",
+      options: [
+        "A right answer and a wrong answer",
+        "Only the green flag",
+        "Only the backdrop",
+        "Only the sprite size",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main aim of this lesson?",
+      options: [
+        "To build one working quiz question",
+        "To create ten backdrops",
+        "To make the sprite dance forever",
+        "To avoid using input",
+      ],
+      answer: 0,
+    },
+  ],
+  9: [
+    {
+      prompt: "What does it mean to expand a quiz?",
+      options: [
+        "Add more questions while keeping it organised",
+        "Make the text bigger only",
+        "Delete the first question",
+        "Remove all conditions",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you finish before adding another question?",
+      options: [
+        "One working question",
+        "Every costume in Scratch",
+        "A soundtrack",
+        "The printed display board",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why can copying code be useful?",
+      options: [
+        "It helps build the next question faster if edited carefully",
+        "It means no thinking is needed",
+        "It fixes all bugs by itself",
+        "It removes the need for testing",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What must you change after copying a question?",
+      options: [
+        "The wording and correct answer",
+        "The school name",
+        "The stage size",
+        "The mouse cable",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is structure important in a bigger quiz?",
+      options: [
+        "So the order still makes sense",
+        "So nobody can read it",
+        "So the quiz becomes confusing",
+        "So it stops after one question",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you test after adding a second question?",
+      options: [
+        "Both questions",
+        "Only the title",
+        "Only the first sprite costume",
+        "Only the backdrop colour",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is one danger when extending a project?",
+      options: [
+        "It can become messy if not organised",
+        "It always becomes impossible",
+        "It can never be tested",
+        "It removes the first question automatically",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which word best matches making a project bigger?",
+      options: ["extend", "erase", "shrink", "freeze"],
+      answer: 0,
+    },
+    {
+      prompt: "What common mistake should pupils avoid?",
+      options: [
+        "Copying code and forgetting to edit it properly",
+        "Testing both questions",
+        "Keeping the code in order",
+        "Using clear feedback",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the goal of this lesson?",
+      options: [
+        "To add more quiz questions clearly and sensibly",
+        "To replace all questions with sounds",
+        "To remove all structure",
+        "To stop after one question forever",
+      ],
+      answer: 0,
+    },
+  ],
+  10: [
+    {
+      prompt: "Why should a project be tested in more than one way?",
+      options: [
+        "Because one successful test does not prove everything works",
+        "Because testing is only for adults",
+        "Because the first test is always perfect",
+        "Because testing deletes mistakes automatically",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which is a good test for a quiz project?",
+      options: [
+        "Try correct, incorrect, and unusual answers",
+        "Only click the green flag once",
+        "Only look at the backdrop",
+        "Only test the project title",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is an edge case?",
+      options: [
+        "An unusual input that still needs to work",
+        "A type of sprite",
+        "A kind of background",
+        "A sound effect",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why might capital letters matter in testing?",
+      options: [
+        "Because the program may react differently to them",
+        "Because capital letters break every computer",
+        "Because Scratch cannot display them",
+        "Because they change the sprite colour",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you do after finding a problem?",
+      options: [
+        "Fix one issue at a time and retest",
+        "Delete everything",
+        "Ignore it",
+        "Add three more questions immediately",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is partner testing useful?",
+      options: [
+        "Another person may spot problems you missed",
+        "It removes the need for your own testing",
+        "It makes the code shorter",
+        "It changes the class name",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the purpose of recording what went wrong?",
+      options: [
+        "It helps you improve the right part",
+        "It makes the project slower",
+        "It stops the quiz from running",
+        "It changes the sprite costume",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What does improving reliability mean?",
+      options: [
+        "Making the project work in different situations",
+        "Making the project louder",
+        "Making the stage brighter",
+        "Adding more random blocks",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which statement is true?",
+      options: [
+        "Testing is part of making a strong project",
+        "Testing is only needed after publishing",
+        "Testing should be avoided",
+        "Testing replaces coding",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main focus of this lesson?",
+      options: [
+        "Checking the quiz carefully and improving weak areas",
+        "Changing every sprite name",
+        "Using only movement blocks",
+        "Removing all feedback",
+      ],
+      answer: 0,
+    },
+  ],
+  11: [
+    {
+      prompt: "What does enhancing a program mean?",
+      options: [
+        "Improving how clear and enjoyable it is to use",
+        "Making it longer without thinking",
+        "Deleting working parts",
+        "Removing all instructions",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is user experience?",
+      options: [
+        "How the program feels for the person using it",
+        "The colour of the teacher's desk",
+        "The age of the laptop",
+        "The size of the mouse mat",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which improvement is most helpful?",
+      options: [
+        "Making instructions clearer",
+        "Adding confusing text everywhere",
+        "Hiding all feedback",
+        "Removing all questions",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is feedback important in a quiz?",
+      options: [
+        "It helps the user understand what happened",
+        "It changes the school logo",
+        "It stops the answer being checked",
+        "It removes the need for testing",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you think about before adding extra sounds or visuals?",
+      options: [
+        "Do they help the user?",
+        "Are they the brightest possible colours?",
+        "Can they replace all the code?",
+        "Will they remove the questions?",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is a poor improvement choice?",
+      options: [
+        "Adding features that make the quiz harder to understand",
+        "Using clearer messages",
+        "Checking readability",
+        "Asking a partner for feedback",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should happen to the code while improving design?",
+      options: [
+        "It should stay organised",
+        "It should become messy",
+        "It should be hidden from everyone",
+        "It should be deleted",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why should the questions be easy to read?",
+      options: [
+        "Because users need to understand them quickly",
+        "Because Scratch cannot show text otherwise",
+        "Because big text fixes logic errors",
+        "Because reading is not important",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What misunderstanding should pupils avoid?",
+      options: [
+        "Improvement is not just decoration; it should help the user",
+        "Improvement means adding random sounds only",
+        "Improvement means changing everything at once",
+        "Improvement means never asking for feedback",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main aim of this lesson?",
+      options: [
+        "To make the quiz clearer and more polished",
+        "To remove all messages",
+        "To avoid thinking about the user",
+        "To stop testing completely",
+      ],
+      answer: 0,
+    },
+  ],
+  12: [
+    {
+      prompt: "What does consolidation mean in this unit?",
+      options: [
+        "Bringing learning together and reviewing the final project",
+        "Starting again from lesson one",
+        "Only changing colours",
+        "Removing all quiz questions",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you do before calling the project finished?",
+      options: [
+        "Run it from start to finish and check it carefully",
+        "Close it immediately",
+        "Delete the feedback",
+        "Ignore all mistakes",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why is reflection useful?",
+      options: [
+        "It helps you spot strengths and next steps",
+        "It stops you from improving",
+        "It replaces testing",
+        "It changes the code automatically",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is a strength in a final project?",
+      options: [
+        "Something that works well",
+        "A random mistake",
+        "An empty section",
+        "A missing answer check",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is a next step?",
+      options: [
+        "Something you would improve in future",
+        "The same thing as deleting the project",
+        "A new computer",
+        "A printed title page",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should you check near the end?",
+      options: [
+        "Questions, feedback, and any remaining errors",
+        "Only the class name",
+        "Only the font size",
+        "Only the device wallpaper",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Which sentence is true?",
+      options: [
+        "Finished does not always mean perfect",
+        "Finished always means there is nothing to improve",
+        "Finished means it was never tested",
+        "Finished means the code is invisible",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "Why should pupils review their coding choices?",
+      options: [
+        "So they can explain how the project works",
+        "So they can remove all logic",
+        "So they can avoid discussing learning",
+        "So they can stop the quiz running",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What should a final version be ready for?",
+      options: [
+        "Saving and presenting",
+        "Deleting immediately",
+        "Never being opened again",
+        "Having all conditions removed",
+      ],
+      answer: 0,
+    },
+    {
+      prompt: "What is the main purpose of this lesson?",
+      options: [
+        "To finish the quiz and reflect on the learning",
+        "To start a different unit without review",
+        "To replace every question with animation",
+        "To skip evaluation",
+      ],
+      answer: 0,
+    },
+  ],
+};
 
 const pastel = {
   page: "#f8fafc",
@@ -578,6 +1669,7 @@ const pastel = {
   panelMint: "#ecfeff",
   panelLilac: "#f5f3ff",
   panelPeach: "#fff7ed",
+  panelSky: "#f0f9ff",
   border: "#dbe4f0",
   accent: "#7c3aed",
   accentSoft: "#ede9fe",
@@ -587,11 +1679,67 @@ const pastel = {
   amber: "#f59e0b",
   amberSoft: "#fef3c7",
   rose: "#f43f5e",
+  roseSoft: "#fff1f2",
+  blueSoft: "#dbeafe",
   shadow: "0 10px 30px rgba(148, 163, 184, 0.14)",
 };
 
 function slugifyName(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, "-");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+function normaliseName(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function buildStorageKey(className: string, studentName: string) {
+  return `year5-${className}-${slugifyName(studentName)}`;
+}
+
+function getRegistry(): LearnerProfile[] {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(REGISTRY_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as LearnerProfile[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRegistry(registry: LearnerProfile[]) {
+  localStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+}
+
+function addProfileToRegistry(profile: LearnerProfile) {
+  const existing = getRegistry();
+  const alreadyExists = existing.some(
+    (item) => item.storageKey === profile.storageKey
+  );
+  if (!alreadyExists) {
+    saveRegistry([...existing, profile].sort((a, b) =>
+      a.studentName.localeCompare(b.studentName)
+    ));
+  }
+}
+
+function removeProfileFromRegistry(profile: LearnerProfile) {
+  const existing = getRegistry();
+  const filtered = existing.filter(
+    (item) => item.storageKey !== profile.storageKey
+  );
+  saveRegistry(filtered);
+}
+
+function buildQuiz(lessonId: number): QuizQuestion[] {
+  return quizBank[lessonId] || [];
 }
 
 export default function Home() {
@@ -604,23 +1752,33 @@ export default function Home() {
   const [screenshots, setScreenshots] = useState<ScreenshotMap>({});
   const [profile, setProfile] = useState<LearnerProfile | null>(null);
 
+  const [startMode, setStartMode] = useState<StartMode>("existing");
   const [setupClass, setSetupClass] = useState<string>("");
   const [setupStudentName, setSetupStudentName] = useState("");
+  const [existingClass, setExistingClass] = useState<string>(CLASS_OPTIONS[0]);
+  const [registry, setRegistry] = useState<LearnerProfile[]>([]);
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem("year5-current-profile");
+    const loadedRegistry = getRegistry();
+    setRegistry(loadedRegistry);
+
+    const savedProfile = localStorage.getItem(CURRENT_PROFILE_KEY);
     if (savedProfile) {
-      const parsed = JSON.parse(savedProfile) as LearnerProfile;
-      setProfile(parsed);
-      setSetupClass(parsed.className);
-      setSetupStudentName(parsed.studentName);
+      try {
+        const parsed = JSON.parse(savedProfile) as LearnerProfile;
+        setProfile(parsed);
+        setSetupClass(parsed.className);
+        setSetupStudentName(parsed.studentName);
+      } catch {
+        localStorage.removeItem(CURRENT_PROFILE_KEY);
+      }
     }
   }, []);
 
   useEffect(() => {
     if (!profile) return;
 
-    localStorage.setItem("year5-current-profile", JSON.stringify(profile));
+    localStorage.setItem(CURRENT_PROFILE_KEY, JSON.stringify(profile));
 
     const savedProgress = localStorage.getItem(`${profile.storageKey}-progress`);
     const savedQuiz = localStorage.getItem(`${profile.storageKey}-quiz-results`);
@@ -661,12 +1819,16 @@ export default function Home() {
 
   const selectedLesson =
     lessons.find((lesson) => lesson.id === selectedLessonId) || lessons[0];
-  const quiz = useMemo(() => buildQuiz(selectedLesson), [selectedLesson]);
+
+  const quiz = useMemo(() => buildQuiz(selectedLesson.id), [selectedLesson.id]);
   const submittedResult = quizState[selectedLesson.id];
   const selectedAnswers =
     currentAnswers[selectedLesson.id] || Array(quiz.length).fill(-1);
   const progress = Math.round((completed.length / lessons.length) * 100);
   const selectedScreenshot = screenshots[selectedLesson.id];
+  const scorePercent = submittedResult
+    ? Math.round((submittedResult.score / quiz.length) * 100)
+    : 0;
 
   const groupedLessons = useMemo(
     () => ({
@@ -680,29 +1842,67 @@ export default function Home() {
     []
   );
 
-  const startSession = () => {
+  const existingPupilsForClass = useMemo(() => {
+    return registry.filter((item) => item.className === existingClass);
+  }, [registry, existingClass]);
+
+  const startNewSession = () => {
     if (!setupClass) {
       alert("Please choose a class.");
       return;
     }
 
-    if (!setupStudentName.trim()) {
+    const cleanName = normaliseName(setupStudentName);
+    if (!cleanName) {
       alert("Please enter the student name.");
       return;
     }
 
-    const cleanName = setupStudentName.trim();
-    const storageKey = `year5-${setupClass}-${slugifyName(cleanName)}`;
-
-    setProfile({
+    const storageKey = buildStorageKey(setupClass, cleanName);
+    const newProfile: LearnerProfile = {
       className: setupClass,
       studentName: cleanName,
       storageKey,
-    });
+    };
+
+    addProfileToRegistry(newProfile);
+    setRegistry(getRegistry());
+    setProfile(newProfile);
+    setExistingClass(setupClass);
+  };
+
+  const openExistingPupil = (selectedProfile: LearnerProfile) => {
+    setProfile(selectedProfile);
+    setSetupClass(selectedProfile.className);
+    setSetupStudentName(selectedProfile.studentName);
   };
 
   const switchLearner = () => {
     setProfile(null);
+    setCurrentAnswers({});
+    setStartMode("existing");
+    setRegistry(getRegistry());
+  };
+
+  const deleteExistingPupil = (selectedProfile: LearnerProfile) => {
+    const confirmed = window.confirm(
+      `Delete saved data for ${selectedProfile.studentName} in ${selectedProfile.className}? This will remove progress, quiz scores, and screenshots from this browser.`
+    );
+
+    if (!confirmed) return;
+
+    localStorage.removeItem(`${selectedProfile.storageKey}-progress`);
+    localStorage.removeItem(`${selectedProfile.storageKey}-quiz-results`);
+    localStorage.removeItem(`${selectedProfile.storageKey}-screenshots`);
+
+    removeProfileFromRegistry(selectedProfile);
+    const updated = getRegistry();
+    setRegistry(updated);
+
+    if (profile?.storageKey === selectedProfile.storageKey) {
+      localStorage.removeItem(CURRENT_PROFILE_KEY);
+      setProfile(null);
+    }
   };
 
   const markComplete = () => {
@@ -733,6 +1933,7 @@ export default function Home() {
 
   const submitQuiz = () => {
     if (submittedResult?.submitted) return;
+
     if (selectedAnswers.some((answer) => answer === -1)) {
       alert("Please answer all 10 questions before submitting.");
       return;
@@ -798,7 +1999,7 @@ export default function Home() {
         style={{
           padding: 32,
           fontFamily: "Inter, Arial, sans-serif",
-          maxWidth: 980,
+          maxWidth: 1100,
           margin: "0 auto",
           background: pastel.page,
           color: pastel.text,
@@ -840,120 +2041,336 @@ export default function Home() {
               Welcome to Year 5 Computing
             </h1>
             <p style={{ fontSize: 20, margin: 0 }}>
-              Choose your class and enter your name to open your learning space.
+              Choose an existing pupil or create a new pupil learning space on
+              this browser.
             </p>
           </div>
 
           <div
             style={{
-              background: "rgba(255,255,255,0.72)",
-              border: `1px solid ${pastel.border}`,
-              borderRadius: 24,
-              padding: 24,
+              display: "flex",
+              gap: 12,
+              marginBottom: 22,
+              flexWrap: "wrap",
             }}
           >
-            <h2
-              style={{
-                fontSize: 28,
-                marginTop: 0,
-                marginBottom: 14,
-                color: pastel.title,
-              }}
-            >
-              Step 1: Choose your class
-            </h2>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(180px, 1fr))",
-                gap: 14,
-                marginBottom: 24,
-              }}
-            >
-              {CLASS_OPTIONS.map((classOption) => {
-                const isActive = setupClass === classOption;
-                return (
-                  <button
-                    key={classOption}
-                    onClick={() => setSetupClass(classOption)}
-                    style={{
-                      padding: "18px 16px",
-                      borderRadius: 18,
-                      border: isActive
-                        ? "1px solid #c4b5fd"
-                        : `1px solid ${pastel.border}`,
-                      background: isActive
-                        ? "linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%)"
-                        : "#ffffff",
-                      fontWeight: 800,
-                      fontSize: 18,
-                      color: pastel.title,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {classOption}
-                  </button>
-                );
-              })}
-            </div>
-
-            <h2
-              style={{
-                fontSize: 28,
-                marginTop: 0,
-                marginBottom: 14,
-                color: pastel.title,
-              }}
-            >
-              Step 2: Enter your name
-            </h2>
-
-            <input
-              type="text"
-              value={setupStudentName}
-              onChange={(e) => setSetupStudentName(e.target.value)}
-              placeholder="Type your first name and surname"
-              style={{
-                width: "100%",
-                padding: "16px 18px",
-                borderRadius: 16,
-                border: `1px solid ${pastel.border}`,
-                fontSize: 18,
-                marginBottom: 20,
-                outline: "none",
-              }}
-            />
-
             <button
-              onClick={startSession}
+              onClick={() => setStartMode("existing")}
               style={{
-                padding: "16px 22px",
+                padding: "14px 18px",
                 borderRadius: 16,
-                border: "none",
-                background: "linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%)",
-                color: "white",
+                border:
+                  startMode === "existing"
+                    ? "1px solid #c4b5fd"
+                    : `1px solid ${pastel.border}`,
+                background:
+                  startMode === "existing"
+                    ? "linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%)"
+                    : "#ffffff",
                 fontWeight: 800,
-                fontSize: 18,
+                fontSize: 16,
+                color: pastel.title,
                 cursor: "pointer",
               }}
             >
-              Start Learning
+              Choose Existing Pupil
             </button>
 
-            <p
+            <button
+              onClick={() => setStartMode("new")}
               style={{
-                marginTop: 18,
-                marginBottom: 0,
-                fontSize: 14,
-                color: "#64748b",
-                lineHeight: 1.6,
+                padding: "14px 18px",
+                borderRadius: 16,
+                border:
+                  startMode === "new"
+                    ? "1px solid #c4b5fd"
+                    : `1px solid ${pastel.border}`,
+                background:
+                  startMode === "new"
+                    ? "linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%)"
+                    : "#ffffff",
+                fontWeight: 800,
+                fontSize: 16,
+                color: pastel.title,
+                cursor: "pointer",
               }}
             >
-              Each pupil’s progress, quiz results, and screenshot uploads are
-              stored separately on this browser using their class and name.
-            </p>
+              New Pupil
+            </button>
           </div>
+
+          {startMode === "existing" ? (
+            <div
+              style={{
+                background: "rgba(255,255,255,0.78)",
+                border: `1px solid ${pastel.border}`,
+                borderRadius: 24,
+                padding: 24,
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 28,
+                  marginTop: 0,
+                  marginBottom: 14,
+                  color: pastel.title,
+                }}
+              >
+                Choose Existing Pupil
+              </h2>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(180px, 1fr))",
+                  gap: 14,
+                  marginBottom: 24,
+                }}
+              >
+                {CLASS_OPTIONS.map((classOption) => {
+                  const isActive = existingClass === classOption;
+                  return (
+                    <button
+                      key={classOption}
+                      onClick={() => setExistingClass(classOption)}
+                      style={{
+                        padding: "18px 16px",
+                        borderRadius: 18,
+                        border: isActive
+                          ? "1px solid #c4b5fd"
+                          : `1px solid ${pastel.border}`,
+                        background: isActive
+                          ? "linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%)"
+                          : "#ffffff",
+                        fontWeight: 800,
+                        fontSize: 18,
+                        color: pastel.title,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {classOption}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {existingPupilsForClass.length === 0 ? (
+                <div
+                  style={{
+                    border: `1px dashed ${pastel.border}`,
+                    borderRadius: 18,
+                    padding: 22,
+                    background: "#ffffff",
+                    fontSize: 17,
+                    color: "#64748b",
+                  }}
+                >
+                  No saved pupils yet for {existingClass}.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {existingPupilsForClass.map((savedPupil) => (
+                    <div
+                      key={savedPupil.storageKey}
+                      style={{
+                        background: "#ffffff",
+                        border: `1px solid ${pastel.border}`,
+                        borderRadius: 18,
+                        padding: 16,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: 800,
+                            fontSize: 18,
+                            color: pastel.title,
+                          }}
+                        >
+                          {savedPupil.studentName}
+                        </div>
+                        <div style={{ fontSize: 14, color: "#64748b" }}>
+                          {savedPupil.className}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => openExistingPupil(savedPupil)}
+                          style={{
+                            padding: "12px 16px",
+                            borderRadius: 14,
+                            border: "none",
+                            background:
+                              "linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%)",
+                            color: "white",
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Open
+                        </button>
+
+                        <button
+                          onClick={() => deleteExistingPupil(savedPupil)}
+                          style={{
+                            padding: "12px 16px",
+                            borderRadius: 14,
+                            border: "1px solid #fecdd3",
+                            background: pastel.roseSoft,
+                            color: pastel.rose,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p
+                style={{
+                  marginTop: 18,
+                  marginBottom: 0,
+                  fontSize: 14,
+                  color: "#64748b",
+                  lineHeight: 1.6,
+                }}
+              >
+                Saved pupils are stored only on this browser and device.
+              </p>
+            </div>
+          ) : (
+            <div
+              style={{
+                background: "rgba(255,255,255,0.78)",
+                border: `1px solid ${pastel.border}`,
+                borderRadius: 24,
+                padding: 24,
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 28,
+                  marginTop: 0,
+                  marginBottom: 14,
+                  color: pastel.title,
+                }}
+              >
+                Create New Pupil
+              </h2>
+
+              <h3
+                style={{
+                  fontSize: 22,
+                  marginTop: 0,
+                  marginBottom: 12,
+                  color: pastel.title,
+                }}
+              >
+                Step 1: Choose class
+              </h3>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, minmax(180px, 1fr))",
+                  gap: 14,
+                  marginBottom: 24,
+                }}
+              >
+                {CLASS_OPTIONS.map((classOption) => {
+                  const isActive = setupClass === classOption;
+                  return (
+                    <button
+                      key={classOption}
+                      onClick={() => setSetupClass(classOption)}
+                      style={{
+                        padding: "18px 16px",
+                        borderRadius: 18,
+                        border: isActive
+                          ? "1px solid #c4b5fd"
+                          : `1px solid ${pastel.border}`,
+                        background: isActive
+                          ? "linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%)"
+                          : "#ffffff",
+                        fontWeight: 800,
+                        fontSize: 18,
+                        color: pastel.title,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {classOption}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <h3
+                style={{
+                  fontSize: 22,
+                  marginTop: 0,
+                  marginBottom: 12,
+                  color: pastel.title,
+                }}
+              >
+                Step 2: Enter name
+              </h3>
+
+              <input
+                type="text"
+                value={setupStudentName}
+                onChange={(e) => setSetupStudentName(e.target.value)}
+                placeholder="Type first name and surname"
+                style={{
+                  width: "100%",
+                  padding: "16px 18px",
+                  borderRadius: 16,
+                  border: `1px solid ${pastel.border}`,
+                  fontSize: 18,
+                  marginBottom: 20,
+                  outline: "none",
+                }}
+              />
+
+              <button
+                onClick={startNewSession}
+                style={{
+                  padding: "16px 22px",
+                  borderRadius: 16,
+                  border: "none",
+                  background: "linear-gradient(90deg, #7c3aed 0%, #06b6d4 100%)",
+                  color: "white",
+                  fontWeight: 800,
+                  fontSize: 18,
+                  cursor: "pointer",
+                }}
+              >
+                Create Pupil Space
+              </button>
+
+              <p
+                style={{
+                  marginTop: 18,
+                  marginBottom: 0,
+                  fontSize: 14,
+                  color: "#64748b",
+                  lineHeight: 1.6,
+                }}
+              >
+                Progress, quiz scores, and screenshots will be saved separately
+                for this pupil on this browser.
+              </p>
+            </div>
+          )}
         </div>
       </main>
     );
@@ -1177,6 +2594,7 @@ export default function Home() {
                 const active = selectedLessonId === lesson.id;
                 const done = completed.includes(lesson.id);
                 const hasScreenshot = Boolean(screenshots[lesson.id]);
+                const hasQuizScore = Boolean(quizState[lesson.id]?.submitted);
 
                 return (
                   <button
@@ -1245,6 +2663,17 @@ export default function Home() {
                           }}
                         >
                           ✓ Completed
+                        </span>
+                      )}
+                      {hasQuizScore && (
+                        <span
+                          style={{
+                            color: "#1d4ed8",
+                            fontWeight: 800,
+                            fontSize: 13,
+                          }}
+                        >
+                          Quiz: {quizState[lesson.id].score}/10
                         </span>
                       )}
                       {hasScreenshot && (
@@ -1322,7 +2751,7 @@ export default function Home() {
                     color: "#065f46",
                     borderRadius: 18,
                     padding: 18,
-                    minWidth: 190,
+                    minWidth: 220,
                     border: "1px solid #a7f3d0",
                   }}
                 >
@@ -1333,13 +2762,13 @@ export default function Home() {
                       marginBottom: 6,
                     }}
                   >
-                    Quiz Locked
+                    Quiz Submitted
                   </div>
                   <div style={{ fontSize: 28, fontWeight: 900 }}>
                     {submittedResult.score}/10
                   </div>
                   <div style={{ fontSize: 14 }}>
-                    No retakes for this lesson
+                    {scorePercent}% • No retakes for this lesson
                   </div>
                 </div>
               )}
@@ -1555,7 +2984,31 @@ export default function Home() {
                             fontSize: 17,
                           }}
                         >
-                          {option}
+                          <div style={{ fontWeight: 600 }}>{option}</div>
+                          {submittedResult?.submitted && isCorrect && (
+                            <div
+                              style={{
+                                fontSize: 13,
+                                marginTop: 6,
+                                color: "#15803d",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Correct answer
+                            </div>
+                          )}
+                          {submittedResult?.submitted && isWrongChoice && (
+                            <div
+                              style={{
+                                fontSize: 13,
+                                marginTop: 6,
+                                color: "#dc2626",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Your answer
+                            </div>
+                          )}
                         </button>
                       );
                     })}
@@ -1576,7 +3029,7 @@ export default function Home() {
             >
               <div style={{ fontSize: 16, color: "#64748b" }}>
                 {submittedResult?.submitted
-                  ? `Final score: ${submittedResult.score}/10. This quiz is now locked.`
+                  ? `Final score: ${submittedResult.score}/10. Review the green correct answers and any red mistakes to see where to improve.`
                   : "Choose one answer for each question, then submit once."}
               </div>
 
@@ -1599,6 +3052,66 @@ export default function Home() {
                 {submittedResult?.submitted ? "Quiz Submitted" : "Submit Quiz"}
               </button>
             </div>
+
+            {submittedResult?.submitted && (
+              <div
+                style={{
+                  marginTop: 20,
+                  background: pastel.panelSky,
+                  border: `1px solid ${pastel.border}`,
+                  borderRadius: 18,
+                  padding: 18,
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 900,
+                    fontSize: 22,
+                    color: pastel.title,
+                    marginBottom: 8,
+                  }}
+                >
+                  Quiz Result
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 14,
+                    flexWrap: "wrap",
+                    marginBottom: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      background: "#ffffff",
+                      border: `1px solid ${pastel.border}`,
+                      borderRadius: 999,
+                      padding: "10px 14px",
+                      fontWeight: 800,
+                      color: pastel.title,
+                    }}
+                  >
+                    Score: {submittedResult.score}/10
+                  </span>
+                  <span
+                    style={{
+                      background: "#ffffff",
+                      border: `1px solid ${pastel.border}`,
+                      borderRadius: 999,
+                      padding: "10px 14px",
+                      fontWeight: 800,
+                      color: pastel.title,
+                    }}
+                  >
+                    Percentage: {scorePercent}%
+                  </span>
+                </div>
+                <div style={{ fontSize: 16, color: "#475569", lineHeight: 1.6 }}>
+                  Look back through the quiz. Green answers show the correct
+                  responses. Red answers show any choices that need improving.
+                </div>
+              </div>
+            )}
           </div>
 
           <div
