@@ -1,45 +1,61 @@
-# APSR Year 5 Computing App
+# APSR Year 5 Computing App v2
 
-A deployable Next.js web app for the Year 5 Scratch selection unit.
+This upgraded version adds three major features:
 
-## What this includes
-- Home page
-- Pupil dashboard
-- Teacher area
-- Browser-based progress tracking using local storage
-- Ready for easy deployment on Vercel
+- Microsoft 365 login scaffolding using NextAuth
+- Teacher analytics dashboard
+- Scratch project integration inside each lesson
 
-## Before you deploy
-1. Create a `.env.local` file.
-2. Copy the content from `.env.example`.
-3. Change the teacher code if you want.
+## What is live in this version
 
-Example:
-```env
-NEXT_PUBLIC_TEACHER_CODE=YourOwnCodeHere
-```
+- Demo login for pupils and teachers
+- Teacher analytics view using browser data plus demo class data
+- Scratch editor links and starter project placeholders in every lesson
+- Public Vercel deployment support
 
-## Run locally
-1. Install Node.js 20 or newer.
-2. Open a terminal in this project folder.
-3. Run:
-```bash
-npm install
-npm run dev
-```
-4. Open `http://localhost:3000`
+## What still needs setup for live Microsoft sign-in
 
-## Easiest deployment with no developer
-### Option 1: Vercel
-1. Create a GitHub account if you do not already have one.
-2. Upload this project to a new GitHub repository.
-3. Create a free Vercel account.
-4. Import the GitHub repository into Vercel.
-5. Add this environment variable in Vercel:
-   - `NEXT_PUBLIC_TEACHER_CODE`
-6. Click Deploy.
+To enable real Microsoft / Entra login in Vercel, add these environment variables:
 
-After deployment, Vercel will give you a live web address.
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
+- `MICROSOFT_CLIENT_ID`
+- `MICROSOFT_CLIENT_SECRET`
+- `MICROSOFT_TENANT_ID`
+- `NEXT_PUBLIC_ENABLE_MICROSOFT_LOGIN=true`
+- `NEXT_PUBLIC_SCHOOL_DOMAIN=your-school-domain.com`
+- `TEACHER_EMAILS=email1@domain.com,email2@domain.com`
+- `NEXT_PUBLIC_TEACHER_CODE=APSR-Y5`
 
-## Important note
-This version stores pupil progress in each browser only. If you want central tracking for the whole school, the next upgrade is to connect a database such as Supabase or Firebase.
+## Azure / Entra callback URL
+
+In your Microsoft Entra app registration, add this redirect URI:
+
+`https://your-domain/api/auth/callback/azure-ad`
+
+For preview deployments, you can add the Vercel preview URL version as well.
+
+## Scratch links
+
+Each lesson currently includes:
+
+- `scratchEditorUrl`
+- `scratchStarterUrl`
+- `scratchEmbedUrl`
+
+Replace the placeholder URLs in `lib/lessons.ts` with your own school Scratch projects or studio links.
+
+## Deploying the update
+
+1. Replace the files in your GitHub repo with this updated project.
+2. In Vercel, update the environment variables above.
+3. Redeploy.
+
+## Important limitation
+
+The teacher analytics dashboard is still browser-based in this version. It shows:
+
+- current-browser completion and quiz data
+- a demo class table to prove the dashboard layout
+
+To make analytics real across the school, the next stage would be connecting a database such as Supabase or Firebase.
