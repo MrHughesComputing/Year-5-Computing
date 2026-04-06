@@ -1,61 +1,178 @@
-# APSR Year 5 Computing App v2
+# APSR Year 5 Computing App
 
-This upgraded version adds three major features:
+This application is a browser-based computing platform designed for use at **Aldenham Prep School Riyadh**.
 
-- Microsoft 365 login scaffolding using NextAuth
-- Teacher analytics dashboard
-- Scratch project integration inside each lesson
+It delivers a structured **Year 5 computing curriculum** focused on **introducing programming concepts through Scratch**, including sequencing, events, and simple logic, supported by interactive lessons, quizzes, and progress tracking.
 
-## What is live in this version
+---
 
-- Demo login for pupils and teachers
-- Teacher analytics view using browser data plus demo class data
-- Scratch editor links and starter project placeholders in every lesson
-- Public Vercel deployment support
+## 🚀 Core Features
 
-## What still needs setup for live Microsoft sign-in
+* Pupil login system (localStorage-based)
+* Class grouping (multiple Year 5 classes)
+* Structured lesson delivery:
 
-To enable real Microsoft / Entra login in Vercel, add these environment variables:
+  * Key Question
+  * Common Misconceptions
+  * Success Criteria (implicit through outcomes)
+  * Teaching Content
+  * Step-by-step practical guide (Scratch)
 
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`
-- `MICROSOFT_CLIENT_ID`
-- `MICROSOFT_CLIENT_SECRET`
-- `MICROSOFT_TENANT_ID`
-- `NEXT_PUBLIC_ENABLE_MICROSOFT_LOGIN=true`
-- `NEXT_PUBLIC_SCHOOL_DOMAIN=your-school-domain.com`
-- `TEACHER_EMAILS=email1@domain.com,email2@domain.com`
-- `NEXT_PUBLIC_TEACHER_CODE=APSR-Y5`
+---
 
-## Azure / Entra callback URL
+## 🧠 Curriculum Focus
 
-In your Microsoft Entra app registration, add this redirect URI:
+The Year 5 curriculum introduces core programming concepts:
 
-`https://your-domain/api/auth/callback/azure-ad`
+* Sequencing (ordering instructions)
+* Events (what starts a program)
+* Basic movement and control
+* Simple repetition (loops)
+* Introduction to selection (basic conditions)
+* Creating simple interactive projects
 
-For preview deployments, you can add the Vercel preview URL version as well.
+This forms the **foundation for Year 6 progression into logic and decision-making**.
 
-## Scratch links
+---
 
-Each lesson currently includes:
+## 🧪 Assessment System
 
-- `scratchEditorUrl`
-- `scratchStarterUrl`
-- `scratchEmbedUrl`
+* 10-question quizzes per lesson
+* Randomised answer order
+* Immediate score feedback
+* No retakes (to maintain assessment integrity)
 
-Replace the placeholder URLs in `lib/lessons.ts` with your own school Scratch projects or studio links.
+---
 
-## Deploying the update
+## 📸 Evidence of Learning
 
-1. Replace the files in your GitHub repo with this updated project.
-2. In Vercel, update the environment variables above.
-3. Redeploy.
+* Screenshot upload per lesson
+* Pupils upload Scratch work as evidence
+* Stored locally in the browser
 
-## Important limitation
+---
 
-The teacher analytics dashboard is still browser-based in this version. It shows:
+## 📊 Progress Tracking
 
-- current-browser completion and quiz data
-- a demo class table to prove the dashboard layout
+* Lesson completion tracking
+* Progress percentage displayed
+* Quiz completion recorded
+* Data stored per pupil
 
-To make analytics real across the school, the next stage would be connecting a database such as Supabase or Firebase.
+---
+
+## 👨‍🏫 Teacher Dashboard
+
+* Password protected access
+* View pupils saved on the device
+* Class-based filtering
+* Progress indicators:
+
+  * Good progress
+  * Partial progress
+  * Not started
+* Identify pupils requiring support
+* Ability to:
+
+  * Reset pupil progress
+  * Delete pupil data
+  * Open pupil workspace
+
+---
+
+## 🧱 Technical Stack
+
+* Next.js (App Router)
+* TypeScript
+* localStorage (no backend)
+* Vercel deployment
+
+---
+
+## ⚠️ Important System Constraints
+
+* All data is stored **locally in the browser**
+* No cross-device syncing
+* No user authentication system
+* Teacher dashboard password is **not production-secure**
+* Data will be lost if:
+
+  * Browser cache is cleared
+  * Device is changed
+
+---
+
+## 🧠 Data Architecture
+
+Each pupil is assigned a unique storage key:
+
+```ts id="4q0q1y"
+year5-{className}-{studentName}
+```
+
+This isolates:
+
+* Progress
+* Quiz results
+* Quiz randomisation
+* Screenshots
+
+---
+
+## 👨‍🏫 Teacher Dashboard
+
+Access via:
+
+```bash id="lq6yvc"
+/teacher
+```
+
+Password:
+
+```bash id="m8jz6p"
+APSR2026
+```
+
+> This is a classroom-level access control only and not a secure authentication system.
+
+---
+
+## 🎯 Purpose
+
+This platform is designed to:
+
+* Introduce pupils to **core programming concepts**
+* Build confidence in **Scratch development**
+* Support **independent learning in the classroom**
+* Provide teachers with **clear progress visibility**
+* Prepare pupils for **Year 6 logical programming progression**
+
+---
+
+## 🚫 Development Constraints
+
+* No backend integration
+* No database
+* No authentication system
+* Must remain lightweight and classroom-ready
+
+---
+
+## 📌 Status
+
+> **Version: Year 5 – V3.1 (Production Ready)**
+
+* Stable
+* Classroom deployable
+* Inspection-aligned (COBIS / BSO context)
+
+---
+
+## 🔄 Future Improvements (Optional)
+
+* Export / reporting tools
+* Cross-device sync (future development)
+* Enhanced feedback system
+* Mastery-based indicators
+
+---
