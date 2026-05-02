@@ -1,6 +1,12 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import {
+  deleteCloudPupilData,
+  loadCloudProfileData,
+  saveCloudLessonProgress,
+  saveCloudProfile,
+} from "@/lib/cloudProgress";
 
 type Lesson = {
   id: number;
@@ -41,6 +47,18 @@ type LearnerProfile = {
   className: string;
   studentName: string;
   storageKey: string;
+  accessCode?: string;
+};
+
+type PupilExport = {
+  app: "year5-computing";
+  version: 1;
+  exportedAt: string;
+  profile: LearnerProfile;
+  completedLessonIds: number[];
+  quizResults: Record<number, QuizResult>;
+  quizOrder: QuizOrderMap;
+  screenshots: ScreenshotMap;
 };
 
 type StartMode = "existing" | "new";
@@ -1788,6 +1806,28 @@ function applyQuizOrder(questions: QuizQuestion[], quizOrder: number[][]) {
   });
 }
 
+function safeParseNumberArray(raw: string | null) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((value) => Number.isInteger(value))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function safeParseRecord<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function Home() {
   const [selectedLessonId, setSelectedLessonId] = useState(1);
   const [completed, setCompleted] = useState<number[]>([]);
@@ -1802,8 +1842,15 @@ export default function Home() {
   const [startMode, setStartMode] = useState<StartMode>("existing");
   const [setupClass, setSetupClass] = useState<string>("");
   const [setupStudentName, setSetupStudentName] = useState("");
+  const [setupAccessCode, setSetupAccessCode] = useState("");
   const [existingClass, setExistingClass] = useState<string>(CLASS_OPTIONS[0]);
+  const [accessCodeInputs, setAccessCodeInputs] = useState<Record<string, string>>(
+    {}
+  );
   const [registry, setRegistry] = useState<LearnerProfile[]>([]);
+  const [cloudStatus, setCloudStatus] = useState(
+    "Cloud sync has not run yet."
+  );
 
   useEffect(() => {
     const loadedRegistry = getRegistry();
@@ -1825,6 +1872,7 @@ export default function Home() {
   useEffect(() => {
     if (!profile) return;
 
+    let cancelled = false;
     localStorage.setItem(CURRENT_PROFILE_KEY, JSON.stringify(profile));
 
     const savedProgress = localStorage.getItem(`${profile.storageKey}-progress`);
@@ -1836,12 +1884,68 @@ export default function Home() {
       `${profile.storageKey}-quiz-order`
     );
 
-    setCompleted(savedProgress ? JSON.parse(savedProgress) : []);
-    setQuizState(savedQuiz ? JSON.parse(savedQuiz) : {});
+    const localCompleted = safeParseNumberArray(savedProgress);
+    const localQuizState = safeParseRecord<Record<number, QuizResult>>(
+      savedQuiz,
+      {}
+    );
+    const localScreenshots = safeParseRecord<ScreenshotMap>(
+      savedScreenshots,
+      {}
+    );
+
+    setCompleted(localCompleted);
+    setQuizState(localQuizState);
     setCurrentAnswers({});
-    setScreenshots(savedScreenshots ? JSON.parse(savedScreenshots) : {});
+    setScreenshots(localScreenshots);
     setQuizOrderMap(safeParseQuizOrderMap(savedQuizOrder));
     setSelectedLessonId(1);
+
+    setCloudStatus("Checking cloud sync...");
+    saveCloudProfile(profile)
+      .then(() => {
+        if (!cancelled) setCloudStatus("Cloud profile connected.");
+      })
+      .catch((error) => {
+        console.warn("Could not save pupil profile to Supabase.", error);
+        if (!cancelled) {
+          setCloudStatus(
+            `Cloud sync failed: ${error?.message || "check Supabase settings."}`
+          );
+        }
+      });
+
+    loadCloudProfileData(profile.storageKey)
+      .then((cloudData) => {
+        if (!cloudData || cancelled) return;
+        const mergedCompleted = Array.from(
+          new Set([...localCompleted, ...cloudData.completedLessonIds])
+        ).sort((a, b) => a - b);
+        const mergedQuizState = {
+          ...cloudData.quizMap,
+          ...localQuizState,
+        };
+        const mergedScreenshots = {
+          ...cloudData.screenshots,
+          ...localScreenshots,
+        };
+
+        setCompleted(mergedCompleted);
+        setQuizState(mergedQuizState);
+        setScreenshots(mergedScreenshots);
+      })
+      .catch((error) => {
+        console.warn("Could not load pupil progress from Supabase.", error);
+        if (!cancelled) {
+          setCloudStatus(
+            `Cloud load failed: ${error?.message || "check Supabase settings."}`
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [profile]);
 
   useEffect(() => {
@@ -1951,20 +2055,41 @@ export default function Home() {
       return;
     }
 
+    const cleanAccessCode = setupAccessCode.trim();
+    if (cleanAccessCode.length < 4) {
+      alert("Please enter an access code with at least 4 characters.");
+      return;
+    }
+
     const storageKey = buildStorageKey(setupClass, cleanName);
     const newProfile: LearnerProfile = {
       className: setupClass,
       studentName: cleanName,
       storageKey,
+      accessCode: cleanAccessCode,
     };
 
     addProfileToRegistry(newProfile);
     setRegistry(getRegistry());
     setProfile(newProfile);
     setExistingClass(setupClass);
+    setSetupAccessCode("");
+
+    saveCloudProfile(newProfile).catch((error) => {
+      console.warn("Could not save pupil profile to Supabase.", error);
+    });
   };
 
   const openExistingPupil = (selectedProfile: LearnerProfile) => {
+    const savedAccessCode = selectedProfile.accessCode;
+    const enteredAccessCode =
+      accessCodeInputs[selectedProfile.storageKey]?.trim() || "";
+
+    if (savedAccessCode && enteredAccessCode !== savedAccessCode) {
+      alert("Please enter the correct access code for this pupil.");
+      return;
+    }
+
     setProfile(selectedProfile);
     setSetupClass(selectedProfile.className);
     setSetupStudentName(selectedProfile.studentName);
@@ -1974,35 +2099,27 @@ export default function Home() {
     setProfile(null);
     setCurrentAnswers({});
     setQuizOrderMap({});
+    setAccessCodeInputs({});
     setStartMode("existing");
     setRegistry(getRegistry());
-  };
-
-  const deleteExistingPupil = (selectedProfile: LearnerProfile) => {
-    const confirmed = window.confirm(
-      `Delete saved data for ${selectedProfile.studentName} in ${selectedProfile.className}? This will remove progress, quiz scores, and screenshots from this browser.`
-    );
-
-    if (!confirmed) return;
-
-    localStorage.removeItem(`${selectedProfile.storageKey}-progress`);
-    localStorage.removeItem(`${selectedProfile.storageKey}-quiz-results`);
-    localStorage.removeItem(`${selectedProfile.storageKey}-quiz-order`);
-    localStorage.removeItem(`${selectedProfile.storageKey}-screenshots`);
-
-    removeProfileFromRegistry(selectedProfile);
-    const updated = getRegistry();
-    setRegistry(updated);
-
-    if (profile?.storageKey === selectedProfile.storageKey) {
-      localStorage.removeItem(CURRENT_PROFILE_KEY);
-      setProfile(null);
-    }
   };
 
   const markComplete = () => {
     if (!completed.includes(selectedLesson.id)) {
       setCompleted((prev) => [...prev, selectedLesson.id]);
+      if (profile) {
+        setCloudStatus("Saving lesson completion to cloud...");
+        saveCloudLessonProgress(profile, selectedLesson.id, {
+          completed: true,
+        })
+          .then(() => setCloudStatus("Lesson completion saved to cloud."))
+          .catch((error) => {
+            console.warn("Could not save lesson completion to Supabase.", error);
+            setCloudStatus(
+              `Cloud sync failed: ${error?.message || "lesson not saved."}`
+            );
+          });
+      }
     }
   };
 
@@ -2019,6 +2136,75 @@ export default function Home() {
     localStorage.removeItem(`${profile.storageKey}-quiz-results`);
     localStorage.removeItem(`${profile.storageKey}-quiz-order`);
     localStorage.removeItem(`${profile.storageKey}-screenshots`);
+
+    deleteCloudPupilData(profile).catch((error) => {
+      console.warn("Could not reset pupil progress in Supabase.", error);
+    });
+  };
+
+  const exportCurrentLearnerData = () => {
+    if (!profile) return;
+
+    const payload: PupilExport = {
+      app: "year5-computing",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      profile,
+      completedLessonIds: completed,
+      quizResults: quizState,
+      quizOrder: quizOrderMap,
+      screenshots,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${profile.storageKey}-teacher-results.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const syncCurrentLearnerToCloud = async () => {
+    if (!profile) return;
+
+    setCloudStatus("Syncing to cloud...");
+
+    try {
+      await saveCloudProfile(profile);
+
+      const lessonIds = new Set<number>([
+        ...completed,
+        ...Object.keys(quizState).map(Number),
+        ...Object.keys(screenshots).map(Number),
+      ]);
+
+      for (const lessonId of lessonIds) {
+        if (!Number.isInteger(lessonId)) continue;
+
+        await saveCloudLessonProgress(profile, lessonId, {
+          completed: completed.includes(lessonId),
+          quizResult: quizState[lessonId],
+          screenshot: screenshots[lessonId] || null,
+        });
+      }
+
+      setCloudStatus(
+        `Cloud sync complete at ${new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}.`
+      );
+    } catch (error: any) {
+      console.warn("Could not sync pupil data to Supabase.", error);
+      setCloudStatus(
+        `Cloud sync failed: ${error?.message || "check Supabase settings."}`
+      );
+    }
   };
 
   const chooseAnswer = (questionIndex: number, optionIndex: number) => {
@@ -2046,14 +2232,31 @@ export default function Home() {
       }
     });
 
+    const quizResult: QuizResult = {
+      submitted: true,
+      score,
+      answers: selectedAnswers,
+    };
+
     setQuizState((prev) => ({
       ...prev,
-      [selectedLesson.id]: {
-        submitted: true,
-        score,
-        answers: selectedAnswers,
-      },
+      [selectedLesson.id]: quizResult,
     }));
+
+    if (profile) {
+      setCloudStatus("Saving quiz result to cloud...");
+      saveCloudLessonProgress(profile, selectedLesson.id, {
+        completed: completed.includes(selectedLesson.id),
+        quizResult,
+      })
+        .then(() => setCloudStatus("Quiz result saved to cloud."))
+        .catch((error) => {
+          console.warn("Could not save quiz result to Supabase.", error);
+          setCloudStatus(
+            `Cloud sync failed: ${error?.message || "quiz not saved."}`
+          );
+        });
+    }
   };
 
   const handleScreenshotUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -2079,6 +2282,22 @@ export default function Home() {
           ...prev,
           [selectedLesson.id]: result,
         }));
+
+        if (profile) {
+          setCloudStatus("Saving screenshot to cloud...");
+          saveCloudLessonProgress(profile, selectedLesson.id, {
+            completed: completed.includes(selectedLesson.id),
+            quizResult: quizState[selectedLesson.id],
+            screenshot: result,
+          })
+            .then(() => setCloudStatus("Screenshot saved to cloud."))
+            .catch((error) => {
+              console.warn("Could not save screenshot to Supabase.", error);
+              setCloudStatus(
+                `Cloud sync failed: ${error?.message || "screenshot not saved."}`
+              );
+            });
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -2091,6 +2310,22 @@ export default function Home() {
       delete updated[selectedLesson.id];
       return updated;
     });
+
+    if (profile) {
+      setCloudStatus("Removing screenshot from cloud...");
+      saveCloudLessonProgress(profile, selectedLesson.id, {
+        completed: completed.includes(selectedLesson.id),
+        quizResult: quizState[selectedLesson.id],
+        screenshot: null,
+      })
+        .then(() => setCloudStatus("Screenshot removed from cloud."))
+        .catch((error) => {
+          console.warn("Could not remove screenshot from Supabase.", error);
+          setCloudStatus(
+            `Cloud sync failed: ${error?.message || "screenshot not removed."}`
+          );
+        });
+    }
   };
 
   if (!profile) {
@@ -2142,7 +2377,7 @@ export default function Home() {
             </h1>
             <p style={{ fontSize: 20, margin: 0 }}>
               Choose an existing pupil or create a new pupil learning space on
-              this browser.
+              this browser, or open the teacher dashboard.
             </p>
           </div>
 
@@ -2197,6 +2432,25 @@ export default function Home() {
             >
               New Pupil
             </button>
+
+            <a
+              href="/teacher"
+              style={{
+                padding: "14px 18px",
+                borderRadius: 16,
+                border: `1px solid ${pastel.border}`,
+                background: "#ffffff",
+                fontWeight: 800,
+                fontSize: 16,
+                color: pastel.title,
+                cursor: "pointer",
+                textDecoration: "none",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+            >
+              Teacher Dashboard
+            </a>
           </div>
 
           {startMode === "existing" ? (
@@ -2299,7 +2553,42 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                        }}
+                      >
+                        {savedPupil.accessCode && (
+                          <input
+                            type="password"
+                            inputMode="text"
+                            value={accessCodeInputs[savedPupil.storageKey] || ""}
+                            onChange={(event) =>
+                              setAccessCodeInputs((prev) => ({
+                                ...prev,
+                                [savedPupil.storageKey]: event.target.value,
+                              }))
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                openExistingPupil(savedPupil);
+                              }
+                            }}
+                            placeholder="Access code"
+                            style={{
+                              width: 150,
+                              padding: "12px 14px",
+                              borderRadius: 14,
+                              border: `1px solid ${pastel.border}`,
+                              fontWeight: 700,
+                              outline: "none",
+                            }}
+                          />
+                        )}
+
                         <button
                           onClick={() => openExistingPupil(savedPupil)}
                           style={{
@@ -2314,21 +2603,6 @@ export default function Home() {
                           }}
                         >
                           Open
-                        </button>
-
-                        <button
-                          onClick={() => deleteExistingPupil(savedPupil)}
-                          style={{
-                            padding: "12px 16px",
-                            borderRadius: 14,
-                            border: "1px solid #fecdd3",
-                            background: pastel.roseSoft,
-                            color: pastel.rose,
-                            fontWeight: 800,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Delete
                         </button>
                       </div>
                     </div>
@@ -2345,7 +2619,8 @@ export default function Home() {
                   lineHeight: 1.6,
                 }}
               >
-                Saved pupils are stored only on this browser and device.
+                Enter the pupil access code to open a protected account. Ask
+                your teacher if the code has been forgotten.
               </p>
             </div>
           ) : (
@@ -2441,6 +2716,33 @@ export default function Home() {
                 }}
               />
 
+              <h3
+                style={{
+                  fontSize: 22,
+                  marginTop: 0,
+                  marginBottom: 12,
+                  color: pastel.title,
+                }}
+              >
+                Step 3: Create access code
+              </h3>
+
+              <input
+                type="text"
+                value={setupAccessCode}
+                onChange={(event) => setSetupAccessCode(event.target.value)}
+                placeholder="Choose a code you can remember"
+                style={{
+                  width: "100%",
+                  padding: "16px 18px",
+                  borderRadius: 16,
+                  border: `1px solid ${pastel.border}`,
+                  fontSize: 18,
+                  marginBottom: 20,
+                  outline: "none",
+                }}
+              />
+
               <button
                 onClick={startNewSession}
                 style={{
@@ -2466,8 +2768,9 @@ export default function Home() {
                   lineHeight: 1.6,
                 }}
               >
-                Progress, quiz scores, and screenshots will be saved separately
-                for this pupil on this browser.
+                Progress, quiz scores, and screenshots will be saved separately.
+                Teachers can view access codes from the dashboard if they are
+                forgotten.
               </p>
             </div>
           )}
@@ -2581,6 +2884,34 @@ export default function Home() {
               >
                 Switch Pupil
               </button>
+              <button
+                onClick={exportCurrentLearnerData}
+                style={{
+                  border: `1px solid ${pastel.border}`,
+                  background: pastel.panelMint,
+                  color: pastel.title,
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Export for Teacher
+              </button>
+              <button
+                onClick={syncCurrentLearnerToCloud}
+                style={{
+                  border: `1px solid ${pastel.border}`,
+                  background: pastel.panelBlue,
+                  color: pastel.title,
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Sync Now
+              </button>
               <a
                 href="/teacher"
                 style={{
@@ -2596,6 +2927,25 @@ export default function Home() {
               >
                 Teacher Dashboard
               </a>
+              <span
+                style={{
+                  background: cloudStatus.includes("failed")
+                    ? pastel.roseSoft
+                    : "rgba(255,255,255,0.8)",
+                  border: cloudStatus.includes("failed")
+                    ? "1px solid #fecdd3"
+                    : `1px solid ${pastel.border}`,
+                  borderRadius: 999,
+                  padding: "8px 12px",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  color: cloudStatus.includes("failed")
+                    ? pastel.rose
+                    : pastel.title,
+                }}
+              >
+                {cloudStatus}
+              </span>
             </div>
           </div>
 

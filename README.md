@@ -9,6 +9,7 @@ It delivers a structured **Year 5 computing curriculum** focused on **introducin
 ## 🚀 Core Features
 
 * Pupil login system (localStorage-based)
+* Pupil account access codes
 * Class grouping (multiple Year 5 classes)
 * Structured lesson delivery:
 
@@ -65,6 +66,8 @@ This forms the **foundation for Year 6 progression into logic and decision-makin
 
 * Password protected access
 * View pupils saved on the device
+* Import pupil result exports from other classroom devices
+* View pupil access codes when pupils forget them
 * Class-based filtering
 * Progress indicators:
 
@@ -74,6 +77,7 @@ This forms the **foundation for Year 6 progression into logic and decision-makin
 * Identify pupils requiring support
 * Ability to:
 
+  * Review imported quiz scores and screenshot evidence
   * Reset pupil progress
   * Delete pupil data
   * Open pupil workspace
@@ -85,16 +89,18 @@ This forms the **foundation for Year 6 progression into logic and decision-makin
 * Next.js (App Router)
 * TypeScript
 * localStorage (no backend)
+* Supabase cloud sync for cross-device teacher results
 * Vercel deployment
 
 ---
 
 ## ⚠️ Important System Constraints
 
-* All data is stored **locally in the browser**
-* No cross-device syncing
+* Data is stored locally first, then synced to Supabase when configured
+* Cross-device teacher results require Supabase environment variables
+* Teachers can collect cross-device results using the pupil **Export for Teacher** button and the dashboard **Import Pupil Results** button
 * No user authentication system
-* Teacher dashboard password is **not production-secure**
+* Pupil access codes and the teacher dashboard password are classroom-level controls, not production-secure authentication
 * Data will be lost if:
 
   * Browser cache is cleared
@@ -151,8 +157,8 @@ This platform is designed to:
 
 ## 🚫 Development Constraints
 
-* No backend integration
-* No database
+* Supabase is used for cloud result syncing
+* localStorage remains as a fallback for classroom resilience
 * No authentication system
 * Must remain lightweight and classroom-ready
 
@@ -174,5 +180,28 @@ This platform is designed to:
 * Cross-device sync (future development)
 * Enhanced feedback system
 * Mastery-based indicators
+
+---
+
+## Supabase Setup
+
+1. Create a Supabase project.
+2. Open the Supabase SQL Editor and run `supabase-schema.sql`.
+3. Copy `.env.example` to `.env.local`.
+4. Add the real values from Supabase Project Settings > API:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+```
+
+5. Install dependencies and run the app.
+
+```bash
+npm install
+npm run dev
+```
+
+When Supabase is configured, pupil progress, quiz results, and screenshots sync automatically. The teacher dashboard can then use **Refresh Cloud Results** to load results from all devices.
 
 ---
