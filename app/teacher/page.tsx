@@ -66,6 +66,7 @@ const TEACHER_UNLOCKED_KEY = "year5-teacher-unlocked";
 const TEACHER_PASSWORD = "APSR2026";
 const DEFAULT_ACCESS_CODE = "123456";
 const TOTAL_LESSONS = 12;
+const QUIZ_QUESTIONS_PER_LESSON = 10;
 
 const pastel = {
   page: "#f8fafc",
@@ -549,6 +550,12 @@ export default function TeacherDashboardPage() {
       const text = String(value);
       return `"${text.replace(/"/g, '""')}"`;
     };
+    const maxQuizScore = TOTAL_LESSONS * QUIZ_QUESTIONS_PER_LESSON;
+    const totalQuizScore = (row: TeacherPupilRow) =>
+      Object.values(row.quizMap).reduce(
+        (sum, quiz) => sum + (quiz?.submitted ? quiz.score : 0),
+        0
+      );
 
     const headers = [
       "Class",
@@ -558,9 +565,10 @@ export default function TeacherDashboardPage() {
       "Completed Lessons",
       "Quiz Count",
       "Screenshot Count",
+      `Total Quiz Score / ${maxQuizScore}`,
       ...Array.from({ length: TOTAL_LESSONS }, (_, index) => [
         `Lesson ${index + 1} Completed`,
-        `Lesson ${index + 1} Quiz Score`,
+        `Lesson ${index + 1} Quiz Score / ${QUIZ_QUESTIONS_PER_LESSON}`,
         `Lesson ${index + 1} Screenshot Uploaded`,
       ]).flat(),
     ];
@@ -573,12 +581,13 @@ export default function TeacherDashboardPage() {
       row.completedLessons,
       row.quizCompletedCount,
       row.screenshotCount,
+      totalQuizScore(row),
       ...Array.from({ length: TOTAL_LESSONS }, (_, index) => {
         const lessonId = index + 1;
         const quiz = row.quizMap[lessonId];
         return [
           row.completedLessonIds.includes(lessonId) ? "Yes" : "No",
-          quiz?.submitted ? `${quiz.score}/10` : "",
+          quiz?.submitted ? `${quiz.score} of ${QUIZ_QUESTIONS_PER_LESSON}` : "",
           row.screenshots[lessonId] ? "Yes" : "No",
         ];
       }).flat(),
