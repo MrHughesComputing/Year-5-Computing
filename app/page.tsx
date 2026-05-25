@@ -72,6 +72,7 @@ const CLASS_OPTIONS = [
 
 const REGISTRY_KEY = "year5-pupil-registry";
 const CURRENT_PROFILE_KEY = "year5-current-profile";
+const DEFAULT_ACCESS_CODE = "123456";
 
 const lessons: Lesson[] = [
   {
@@ -1757,6 +1758,13 @@ function removeProfileFromRegistry(profile: LearnerProfile) {
   saveRegistry(filtered);
 }
 
+function withDefaultAccessCode(profile: LearnerProfile): LearnerProfile {
+  return {
+    ...profile,
+    accessCode: profile.accessCode?.trim() || DEFAULT_ACCESS_CODE,
+  };
+}
+
 function buildQuiz(lessonId: number): QuizQuestion[] {
   return quizBank[lessonId] || [];
 }
@@ -1853,13 +1861,17 @@ export default function Home() {
   );
 
   useEffect(() => {
-    const loadedRegistry = getRegistry();
+    const loadedRegistry = getRegistry().map(withDefaultAccessCode);
+    saveRegistry(loadedRegistry);
     setRegistry(loadedRegistry);
 
     const savedProfile = localStorage.getItem(CURRENT_PROFILE_KEY);
     if (savedProfile) {
       try {
-        const parsed = JSON.parse(savedProfile) as LearnerProfile;
+        const parsed = withDefaultAccessCode(
+          JSON.parse(savedProfile) as LearnerProfile
+        );
+        localStorage.setItem(CURRENT_PROFILE_KEY, JSON.stringify(parsed));
         setProfile(parsed);
         setSetupClass(parsed.className);
         setSetupStudentName(parsed.studentName);
@@ -2055,11 +2067,7 @@ export default function Home() {
       return;
     }
 
-    const cleanAccessCode = setupAccessCode.trim();
-    if (cleanAccessCode.length < 4) {
-      alert("Please enter an access code with at least 4 characters.");
-      return;
-    }
+    const cleanAccessCode = setupAccessCode.trim() || DEFAULT_ACCESS_CODE;
 
     const storageKey = buildStorageKey(setupClass, cleanName);
     const newProfile: LearnerProfile = {
@@ -2081,18 +2089,25 @@ export default function Home() {
   };
 
   const openExistingPupil = (selectedProfile: LearnerProfile) => {
-    const savedAccessCode = selectedProfile.accessCode;
+    const profileWithCode = withDefaultAccessCode(selectedProfile);
+    const savedAccessCode = profileWithCode.accessCode || DEFAULT_ACCESS_CODE;
     const enteredAccessCode =
       accessCodeInputs[selectedProfile.storageKey]?.trim() || "";
 
-    if (savedAccessCode && enteredAccessCode !== savedAccessCode) {
+    if (enteredAccessCode !== savedAccessCode) {
       alert("Please enter the correct access code for this pupil.");
       return;
     }
 
-    setProfile(selectedProfile);
-    setSetupClass(selectedProfile.className);
-    setSetupStudentName(selectedProfile.studentName);
+    saveRegistry(
+      getRegistry().map((item) =>
+        item.storageKey === profileWithCode.storageKey ? profileWithCode : item
+      )
+    );
+    setRegistry(getRegistry());
+    setProfile(profileWithCode);
+    setSetupClass(profileWithCode.className);
+    setSetupStudentName(profileWithCode.studentName);
   };
 
   const switchLearner = () => {
@@ -2561,33 +2576,31 @@ export default function Home() {
                           alignItems: "center",
                         }}
                       >
-                        {savedPupil.accessCode && (
-                          <input
-                            type="password"
-                            inputMode="text"
-                            value={accessCodeInputs[savedPupil.storageKey] || ""}
-                            onChange={(event) =>
-                              setAccessCodeInputs((prev) => ({
-                                ...prev,
-                                [savedPupil.storageKey]: event.target.value,
-                              }))
+                        <input
+                          type="password"
+                          inputMode="text"
+                          value={accessCodeInputs[savedPupil.storageKey] || ""}
+                          onChange={(event) =>
+                            setAccessCodeInputs((prev) => ({
+                              ...prev,
+                              [savedPupil.storageKey]: event.target.value,
+                            }))
+                          }
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              openExistingPupil(savedPupil);
                             }
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                openExistingPupil(savedPupil);
-                              }
-                            }}
-                            placeholder="Access code"
-                            style={{
-                              width: 150,
-                              padding: "12px 14px",
-                              borderRadius: 14,
-                              border: `1px solid ${pastel.border}`,
-                              fontWeight: 700,
-                              outline: "none",
-                            }}
-                          />
-                        )}
+                          }}
+                          placeholder="Access code"
+                          style={{
+                            width: 150,
+                            padding: "12px 14px",
+                            borderRadius: 14,
+                            border: `1px solid ${pastel.border}`,
+                            fontWeight: 700,
+                            outline: "none",
+                          }}
+                        />
 
                         <button
                           onClick={() => openExistingPupil(savedPupil)}
@@ -2731,7 +2744,7 @@ export default function Home() {
                 type="text"
                 value={setupAccessCode}
                 onChange={(event) => setSetupAccessCode(event.target.value)}
-                placeholder="Choose a code you can remember"
+                placeholder="Default: 123456"
                 style={{
                   width: "100%",
                   padding: "16px 18px",
