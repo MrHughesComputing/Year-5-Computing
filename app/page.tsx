@@ -4,6 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import {
   deleteCloudPupilData,
   loadCloudProfileData,
+  loadCloudPupilProfiles,
   saveCloudLessonProgress,
   saveCloudProfile,
 } from "@/lib/cloudProgress";
@@ -1826,6 +1827,26 @@ function safeParseNumberArray(raw: string | null) {
   }
 }
 
+function upsertProfileInRegistry(profile: LearnerProfile) {
+  const profileWithCode = withDefaultAccessCode(profile);
+  const existing = getRegistry();
+  const updated = existing.some(
+    (item) => item.storageKey === profileWithCode.storageKey
+  )
+    ? existing.map((item) =>
+        item.storageKey === profileWithCode.storageKey ? profileWithCode : item
+      )
+    : [...existing, profileWithCode];
+
+  saveRegistry(
+    updated.sort((a, b) => {
+      const classCompare = a.className.localeCompare(b.className);
+      if (classCompare !== 0) return classCompare;
+      return a.studentName.localeCompare(b.studentName);
+    })
+  );
+}
+
 function safeParseRecord<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback;
   try {
@@ -1833,6 +1854,31 @@ function safeParseRecord<T>(raw: string | null, fallback: T): T {
     return parsed && typeof parsed === "object" ? parsed : fallback;
   } catch {
     return fallback;
+  }
+}
+
+async function syncProfileDataToCloud(
+  profile: LearnerProfile,
+  completedLessonIds: number[],
+  quizMap: Record<number, QuizResult>,
+  screenshots: ScreenshotMap
+) {
+  await saveCloudProfile(profile);
+
+  const lessonIds = new Set<number>([
+    ...completedLessonIds,
+    ...Object.keys(quizMap).map(Number),
+    ...Object.keys(screenshots).map(Number),
+  ]);
+
+  for (const lessonId of lessonIds) {
+    if (!Number.isInteger(lessonId)) continue;
+
+    await saveCloudLessonProgress(profile, lessonId, {
+      completed: completedLessonIds.includes(lessonId),
+      quizResult: quizMap[lessonId],
+      screenshot: screenshots[lessonId] || null,
+    });
   }
 }
 
@@ -1864,6 +1910,30 @@ export default function Home() {
     const loadedRegistry = getRegistry().map(withDefaultAccessCode);
     saveRegistry(loadedRegistry);
     setRegistry(loadedRegistry);
+
+    loadCloudPupilProfiles()
+      .then((cloudProfiles) => {
+        const localProfiles = getRegistry().map(withDefaultAccessCode);
+        const merged = new Map<string, LearnerProfile>();
+
+        localProfiles.forEach((item) => merged.set(item.storageKey, item));
+        cloudProfiles
+          .filter((item) => CLASS_OPTIONS.includes(item.className))
+          .map(withDefaultAccessCode)
+          .forEach((item) => merged.set(item.storageKey, item));
+
+        const nextRegistry = Array.from(merged.values()).sort((a, b) => {
+          const classCompare = a.className.localeCompare(b.className);
+          if (classCompare !== 0) return classCompare;
+          return a.studentName.localeCompare(b.studentName);
+        });
+
+        saveRegistry(nextRegistry);
+        setRegistry(nextRegistry);
+      })
+      .catch((error) => {
+        console.warn("Could not load cloud pupil list from Supabase.", error);
+      });
 
     const savedProfile = localStorage.getItem(CURRENT_PROFILE_KEY);
     if (savedProfile) {
@@ -1945,6 +2015,23 @@ export default function Home() {
         setCompleted(mergedCompleted);
         setQuizState(mergedQuizState);
         setScreenshots(mergedScreenshots);
+        syncProfileDataToCloud(
+          profile,
+          mergedCompleted,
+          mergedQuizState,
+          mergedScreenshots
+        )
+          .then(() => {
+            if (!cancelled) setCloudStatus("Cloud profile and progress synced.");
+          })
+          .catch((error) => {
+            console.warn("Could not push merged progress to Supabase.", error);
+            if (!cancelled) {
+              setCloudStatus(
+                `Cloud sync failed: ${error?.message || "progress not saved."}`
+              );
+            }
+          });
       })
       .catch((error) => {
         console.warn("Could not load pupil progress from Supabase.", error);
@@ -2099,11 +2186,7 @@ export default function Home() {
       return;
     }
 
-    saveRegistry(
-      getRegistry().map((item) =>
-        item.storageKey === profileWithCode.storageKey ? profileWithCode : item
-      )
-    );
+    upsertProfileInRegistry(profileWithCode);
     setRegistry(getRegistry());
     setProfile(profileWithCode);
     setSetupClass(profileWithCode.className);
@@ -2190,23 +2273,7 @@ export default function Home() {
     setCloudStatus("Syncing to cloud...");
 
     try {
-      await saveCloudProfile(profile);
-
-      const lessonIds = new Set<number>([
-        ...completed,
-        ...Object.keys(quizState).map(Number),
-        ...Object.keys(screenshots).map(Number),
-      ]);
-
-      for (const lessonId of lessonIds) {
-        if (!Number.isInteger(lessonId)) continue;
-
-        await saveCloudLessonProgress(profile, lessonId, {
-          completed: completed.includes(lessonId),
-          quizResult: quizState[lessonId],
-          screenshot: screenshots[lessonId] || null,
-        });
-      }
+      await syncProfileDataToCloud(profile, completed, quizState, screenshots);
 
       setCloudStatus(
         `Cloud sync complete at ${new Date().toLocaleTimeString([], {
