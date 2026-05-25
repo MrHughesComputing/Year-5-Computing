@@ -1749,13 +1749,14 @@ export default function TeacherDashboardPage() {
                               row.completedLessonIds.includes(lessonId);
                             const quizResult = row.quizMap[lessonId];
                             const hasQuiz = Boolean(quizResult?.submitted);
+                            const hasScreenshot = Boolean(row.screenshots[lessonId]);
 
                             return (
                               <div
                                 key={lessonId}
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "84px 1fr auto",
+                                  gridTemplateColumns: "84px 1fr auto auto",
                                   gap: 12,
                                   alignItems: "center",
                                   padding: "10px 12px",
@@ -1792,12 +1793,21 @@ export default function TeacherDashboardPage() {
                                 >
                                   {hasQuiz ? `Quiz ${quizResult.score}/10` : "—"}
                                 </div>
+                                <div
+                                  style={{
+                                    fontWeight: 800,
+                                    color: hasScreenshot ? "#065f46" : "#64748b",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  Screenshot: {hasScreenshot ? "Yes" : "No"}
+                                </div>
                               </div>
                             );
                           })}
                         </div>
 
-                        {Object.keys(row.screenshots).length > 0 && (
+                        {false && Object.keys(row.screenshots).length > 0 && (
                           <div style={{ marginTop: 18 }}>
                             <div
                               style={{
