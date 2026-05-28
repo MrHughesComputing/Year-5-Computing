@@ -39,6 +39,7 @@ type QuizResult = {
   submitted: boolean;
   score: number;
   answers: number[];
+  resetUsed?: boolean;
 };
 
 type ScreenshotMap = Record<number, string>;
@@ -1770,6 +1771,91 @@ function buildQuiz(lessonId: number): QuizQuestion[] {
   return quizBank[lessonId] || [];
 }
 
+function getPerformanceBand(percent: number) {
+  if (percent < 50) {
+    return {
+      label: "Working below Expectations",
+      color: "#be123c",
+      background: "#ffe4e6",
+      border: "#fecdd3",
+    };
+  }
+
+  if (percent < 70) {
+    return {
+      label: "Working towards Expectations",
+      color: "#b45309",
+      background: "#fef3c7",
+      border: "#fde68a",
+    };
+  }
+
+  if (percent <= 85) {
+    return {
+      label: "Meeting Expectations",
+      color: "#047857",
+      background: "#dcfce7",
+      border: "#bbf7d0",
+    };
+  }
+
+  return {
+    label: "Working above Expectations",
+    color: "#0f766e",
+    background: "#ccfbf1",
+    border: "#99f6e4",
+  };
+}
+
+function buildPerformanceSummary(
+  quizState: Record<number, QuizResult>,
+  screenshots: ScreenshotMap
+) {
+  const quizLessons = lessons.filter((lesson) => buildQuiz(lesson.id).length > 0);
+  const totalQuizPossible = quizLessons.reduce(
+    (sum, lesson) => sum + buildQuiz(lesson.id).length,
+    0
+  );
+  const submittedQuizLessons = quizLessons.filter(
+    (lesson) => quizState[lesson.id]?.submitted
+  ).length;
+  const totalQuizScore = quizLessons.reduce((sum, lesson) => {
+    const result = quizState[lesson.id];
+    return sum + (result?.submitted ? result.score : 0);
+  }, 0);
+  const quizCompletionPercent =
+    quizLessons.length === 0
+      ? 0
+      : Math.round((submittedQuizLessons / quizLessons.length) * 100);
+  const quizScorePercent =
+    totalQuizPossible === 0
+      ? 0
+      : Math.round((totalQuizScore / totalQuizPossible) * 100);
+  const quizPercent = Math.round((quizCompletionPercent + quizScorePercent) / 2);
+  const uploadCount = lessons.filter((lesson) => Boolean(screenshots[lesson.id])).length;
+  const uploadPercent =
+    lessons.length === 0 ? 0 : Math.round((uploadCount / lessons.length) * 100);
+  const overallPercent = Math.round((quizPercent + uploadPercent) / 2);
+
+  return {
+    quiz: {
+      percent: quizPercent,
+      label: getPerformanceBand(quizPercent),
+      detail: `${submittedQuizLessons}/${quizLessons.length} quizzes, ${totalQuizScore}/${totalQuizPossible} marks`,
+    },
+    uploads: {
+      percent: uploadPercent,
+      label: getPerformanceBand(uploadPercent),
+      detail: `${uploadCount}/${lessons.length} screenshots`,
+    },
+    overall: {
+      percent: overallPercent,
+      label: getPerformanceBand(overallPercent),
+      detail: "Quiz and upload average",
+    },
+  };
+}
+
 function safeParseQuizOrderMap(raw: string | null): QuizOrderMap {
   if (!raw) return {};
   try {
@@ -2125,6 +2211,7 @@ export default function Home() {
   const scorePercent = submittedResult
     ? Math.round((submittedResult.score / quiz.length) * 100)
     : 0;
+  const performanceSummary = buildPerformanceSummary(quizState, screenshots);
 
   const groupedLessons = useMemo(
     () => ({
@@ -2401,6 +2488,7 @@ export default function Home() {
       submitted: true,
       score,
       answers: selectedAnswers,
+      resetUsed: submittedResult?.resetUsed || false,
     };
 
     setQuizState((prev) => ({
@@ -2419,6 +2507,51 @@ export default function Home() {
           console.warn("Could not save quiz result to Supabase.", error);
           setCloudStatus(
             `Cloud sync failed: ${error?.message || "quiz not saved."}`
+          );
+        });
+    }
+  };
+
+  const resetSelectedQuizOnce = () => {
+    if (!submittedResult?.submitted || submittedResult.resetUsed) return;
+
+    const confirmed = window.confirm(
+      "Reset this quiz? You can only reset each quiz once."
+    );
+    if (!confirmed) return;
+
+    const resetResult: QuizResult = {
+      submitted: false,
+      score: 0,
+      answers: [],
+      resetUsed: true,
+    };
+
+    setQuizState((prev) => ({
+      ...prev,
+      [selectedLesson.id]: resetResult,
+    }));
+    setCurrentAnswers((prev) => ({
+      ...prev,
+      [selectedLesson.id]: Array(quiz.length).fill(-1),
+    }));
+    setQuizOrderMap((prev) => ({
+      ...prev,
+      [selectedLesson.id]: buildQuizOrder(baseQuiz),
+    }));
+
+    if (profile) {
+      setCloudStatus("Saving quiz reset to cloud...");
+      saveCloudLessonProgress(profile, selectedLesson.id, {
+        completed: completed.includes(selectedLesson.id),
+        quizResult: resetResult,
+        screenshot: screenshots[selectedLesson.id] || null,
+      })
+        .then(() => setCloudStatus("Quiz reset saved to cloud."))
+        .catch((error) => {
+          console.warn("Could not save quiz reset to Supabase.", error);
+          setCloudStatus(
+            `Cloud sync failed: ${error?.message || "quiz reset not saved."}`
           );
         });
     }
@@ -3099,6 +3232,90 @@ export default function Home() {
 
           <div
             style={{
+              minWidth: 360,
+              background: "rgba(255,255,255,0.72)",
+              border: `1px solid ${pastel.border}`,
+              borderRadius: 22,
+              padding: 18,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 900,
+                color: pastel.title,
+                marginBottom: 10,
+              }}
+            >
+              Overall Performance
+            </div>
+
+            {[
+              ["Quizzes", performanceSummary.quiz],
+              ["Uploads", performanceSummary.uploads],
+              ["Overall", performanceSummary.overall],
+            ].map(([label, item]) => {
+              const summary = item as typeof performanceSummary.quiz;
+              return (
+                <div key={String(label)} style={{ display: "grid", gap: 6, marginTop: 10 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      fontSize: 14,
+                      fontWeight: 800,
+                    }}
+                  >
+                    <span>{String(label)}</span>
+                    <span>{summary.percent}%</span>
+                  </div>
+                  <div
+                    style={{
+                      height: 9,
+                      background: "#e2e8f0",
+                      borderRadius: 999,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${summary.percent}%`,
+                        height: "100%",
+                        background: summary.label.color,
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      fontSize: 12,
+                      color: "#64748b",
+                    }}
+                  >
+                    <span
+                      style={{
+                        background: summary.label.background,
+                        border: `1px solid ${summary.label.border}`,
+                        color: summary.label.color,
+                        borderRadius: 999,
+                        padding: "4px 8px",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {summary.label.label}
+                    </span>
+                    <span>{summary.detail}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div
+            style={{
               minWidth: 320,
               background: "rgba(255,255,255,0.7)",
               border: `1px solid ${pastel.border}`,
@@ -3651,6 +3868,8 @@ export default function Home() {
               <div style={{ fontSize: 16, color: "#64748b" }}>
                 {submittedResult?.submitted
                   ? `Final score: ${submittedResult.score}/10. Review the green correct answers and any red mistakes to see where to improve.`
+                  : submittedResult?.resetUsed
+                  ? "This is your final attempt for this quiz."
                   : "Choose one answer for each question, then submit once."}
               </div>
 
@@ -3672,6 +3891,23 @@ export default function Home() {
               >
                 {submittedResult?.submitted ? "Quiz Submitted" : "Submit Quiz"}
               </button>
+              {submittedResult?.submitted && !submittedResult.resetUsed && (
+                <button
+                  onClick={resetSelectedQuizOnce}
+                  style={{
+                    padding: "14px 20px",
+                    borderRadius: 14,
+                    border: `1px solid ${pastel.border}`,
+                    background: pastel.panelLilac,
+                    color: pastel.title,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    fontSize: 17,
+                  }}
+                >
+                  Reset Quiz Once
+                </button>
+              )}
             </div>
 
             {submittedResult?.submitted && (
@@ -3730,6 +3966,9 @@ export default function Home() {
                 <div style={{ fontSize: 16, color: "#475569", lineHeight: 1.6 }}>
                   Look back through the quiz. Green answers show the correct
                   responses. Red answers show any choices that need improving.
+                  {submittedResult.resetUsed
+                    ? " This quiz reset has already been used."
+                    : " You may reset this quiz once if you want another attempt."}
                 </div>
               </div>
             )}
