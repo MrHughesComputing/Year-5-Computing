@@ -3034,20 +3034,6 @@ export default function Home() {
                 {profile.studentName}
               </span>
               <button
-                onClick={switchLearner}
-                style={{
-                  border: `1px solid ${pastel.border}`,
-                  background: pastel.panel,
-                  color: pastel.title,
-                  borderRadius: 999,
-                  padding: "8px 14px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Switch Pupil
-              </button>
-              <button
                 onClick={changeAccessCode}
                 style={{
                   border: `1px solid ${pastel.border}`,
@@ -3060,20 +3046,6 @@ export default function Home() {
                 }}
               >
                 Change Code
-              </button>
-              <button
-                onClick={exportCurrentLearnerData}
-                style={{
-                  border: `1px solid ${pastel.border}`,
-                  background: pastel.panelMint,
-                  color: pastel.title,
-                  borderRadius: 999,
-                  padding: "8px 14px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Export for Teacher
               </button>
               <button
                 onClick={syncCurrentLearnerToCloud}
@@ -3103,21 +3075,6 @@ export default function Home() {
               >
                 Save and Exit
               </button>
-              <a
-                href="/teacher"
-                style={{
-                  border: `1px solid ${pastel.border}`,
-                  background: pastel.panel,
-                  color: pastel.title,
-                  borderRadius: 999,
-                  padding: "8px 14px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  textDecoration: "none",
-                }}
-              >
-                Teacher Dashboard
-              </a>
               <span
                 style={{
                   background: cloudStatus.includes("failed")
