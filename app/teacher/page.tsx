@@ -540,6 +540,32 @@ export default function TeacherDashboardPage() {
     };
   }, [selectedClassRows]);
 
+  const yearGroupSummary = useMemo(() => {
+    const total = teacherRows.length;
+    const active = teacherRows.filter((row) => row.hasAnyActivity).length;
+    const notStarted = teacherRows.filter(
+      (row) => row.status === "not-started"
+    ).length;
+    const atRisk = teacherRows.filter(
+      (row) => row.status === "not-started" || row.progressPercent < 25
+    ).length;
+    const averageProgress =
+      total === 0
+        ? 0
+        : Math.round(
+            teacherRows.reduce((sum, row) => sum + row.progressPercent, 0) /
+              total
+          );
+
+    return {
+      total,
+      active,
+      notStarted,
+      atRisk,
+      averageProgress,
+    };
+  }, [teacherRows]);
+
   const highestProgressValue = useMemo(() => {
     if (classRows.length === 0) return 0;
     return Math.max(...classRows.map((row) => row.progressPercent));
@@ -1303,6 +1329,86 @@ export default function TeacherDashboardPage() {
               >
                 <span>Average progress</span>
                 <strong>{classSummary.averageProgress}%</strong>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: pastel.panelMint,
+              border: `1px solid ${pastel.border}`,
+              borderRadius: 18,
+              padding: 16,
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: "#7c3aed",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 10,
+              }}
+            >
+              Year Group Summary
+            </div>
+
+            <div style={{ display: "grid", gap: 10, fontSize: 15 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span>Total pupils</span>
+                <strong>{yearGroupSummary.total}</strong>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span>Active pupils</span>
+                <strong>{yearGroupSummary.active}</strong>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span>Not started</span>
+                <strong>{yearGroupSummary.notStarted}</strong>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span>At risk</span>
+                <strong>{yearGroupSummary.atRisk}</strong>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span>Average progress</span>
+                <strong>{yearGroupSummary.averageProgress}%</strong>
               </div>
             </div>
           </div>

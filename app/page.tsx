@@ -2289,6 +2289,34 @@ export default function Home() {
     }
   };
 
+  const saveAndExit = async () => {
+    if (!profile) return;
+
+    setCloudStatus("Saving before exit...");
+
+    try {
+      await syncProfileDataToCloud(profile, completed, quizState, screenshots);
+      setCloudStatus("Saved.");
+    } catch (error: any) {
+      console.warn("Could not save pupil data before exit.", error);
+      setCloudStatus(
+        `Cloud sync failed: ${error?.message || "progress not saved."}`
+      );
+
+      const exitAnyway = window.confirm(
+        "Cloud save failed. Do you still want to exit?"
+      );
+      if (!exitAnyway) return;
+    }
+
+    setProfile(null);
+    setCurrentAnswers({});
+    setQuizOrderMap({});
+    setAccessCodeInputs({});
+    setStartMode("existing");
+    setRegistry(getRegistry());
+  };
+
   const changeAccessCode = async () => {
     if (!profile) return;
 
@@ -3060,6 +3088,20 @@ export default function Home() {
                 }}
               >
                 Sync Now
+              </button>
+              <button
+                onClick={saveAndExit}
+                style={{
+                  border: `1px solid ${pastel.border}`,
+                  background: "linear-gradient(135deg, #7c3aed, #06b6d4)",
+                  color: "#ffffff",
+                  borderRadius: 999,
+                  padding: "8px 14px",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Save and Exit
               </button>
               <a
                 href="/teacher"
