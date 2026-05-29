@@ -1727,6 +1727,7 @@ export default function TeacherDashboardPage() {
                       boxShadow: isAtRisk ? status.cardGlow : pastel.shadow,
                       display: "grid",
                       gap: 16,
+                      gridColumn: showDetails ? "1 / -1" : undefined,
                     }}
                   >
                     <div
@@ -2056,6 +2057,7 @@ export default function TeacherDashboardPage() {
                           border: `1px solid ${pastel.border}`,
                           borderRadius: 18,
                           padding: 16,
+                          overflowX: "auto",
                         }}
                       >
                         <div
@@ -2083,9 +2085,11 @@ export default function TeacherDashboardPage() {
                                 key={lessonId}
                                 style={{
                                   display: "grid",
-                                  gridTemplateColumns: "84px 1fr auto auto auto",
+                                  gridTemplateColumns:
+                                    "84px minmax(160px, 1fr) minmax(90px, auto) minmax(104px, auto) minmax(120px, auto)",
                                   gap: 12,
                                   alignItems: "center",
+                                  minWidth: 760,
                                   padding: "10px 12px",
                                   borderRadius: 14,
                                   background: "#ffffff",
