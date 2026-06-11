@@ -2159,8 +2159,8 @@ export default function Home() {
           new Set([...localCompleted, ...cloudData.completedLessonIds])
         ).sort((a, b) => a - b);
         const mergedQuizState = {
-          ...cloudData.quizMap,
           ...localQuizState,
+          ...cloudData.quizMap,
         };
         const mergedScreenshots = {
           ...cloudData.screenshots,
