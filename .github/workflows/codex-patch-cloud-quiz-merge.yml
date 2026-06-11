@@ -22,14 +22,28 @@ jobs:
 
           page_path = Path("app/page.tsx")
           text = page_path.read_text()
-          old = "const mergedQuizState = { ...cloudData.quizMap, ...localQuizState };"
-          new = "const mergedQuizState = { ...localQuizState, ...cloudData.quizMap };"
+          replacements = [
+              (
+                  "const mergedQuizState = { ...cloudData.quizMap, ...localQuizState };",
+                  "const mergedQuizState = { ...localQuizState, ...cloudData.quizMap };",
+              ),
+              (
+                  "const mergedQuizState = {\n          ...cloudData.quizMap,\n          ...localQuizState,\n        };",
+                  "const mergedQuizState = {\n          ...localQuizState,\n          ...cloudData.quizMap,\n        };",
+              ),
+          ]
 
-          if old in text:
-              text = text.replace(old, new, 1)
+          changed = False
+          for old, new in replacements:
+              if old in text:
+                  text = text.replace(old, new, 1)
+                  changed = True
+                  break
+
+          if changed:
               page_path.write_text(text)
-          elif new not in text:
-              raise SystemExit("Expected quiz merge line was not found.")
+          elif not any(new in text for _, new in replacements):
+              raise SystemExit("Expected quiz merge block was not found.")
 
           workflow_path = Path(".github/workflows/codex-patch-cloud-quiz-merge.yml")
           if workflow_path.exists():
